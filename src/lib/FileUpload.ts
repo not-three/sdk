@@ -181,7 +181,7 @@ export class FileUpload {
 
             this.setProgress(i, 'upload');
             if (this.cancelled || this.crashed) break;
-            const url = await this.api.getUploadChunkURL(this.id, encrypted.byteLength, i);
+            const url = await this.api.getUploadChunkURL(this.id, encrypted.byteLength, i + 1);
             if (this.cancelled || this.crashed) break;
             const etag = await this.api.uploadChunk(url, encrypted);
 
