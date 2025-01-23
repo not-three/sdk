@@ -1,0 +1,48 @@
+{
+  "name": "@not3/sdk",
+  "version": "IN-DEV",
+  "description": "!3 is a simple, secure and open source paste sharing platform.",
+  "author": "Joschua Becker EDV <support@scolasti.co>",
+  "repository": {
+    "url": "https://github.com/not-three/sdk",
+    "type": "git"
+  },
+  "keywords": [
+    "sdk",
+    "pastebin",
+    "open-api"
+  ],
+  "license": "AGPL-3.0-only",
+  "main": "dist/index.cjs",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "source": "src/index.ts",
+  "scripts": {
+    "generate": "node generate.mjs",
+    "build": "npm run build:ts && npm run build:docs",
+    "build:ts": "parcel build",
+    "build:docs": "typedoc",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "prettier": "prettier --write src"
+  },
+  "devDependencies": {
+    "@asyncapi/modelina": "^3.10.0",
+    "@eslint/js": "^9.18.0",
+    "@parcel/packager-ts": "2.13.3",
+    "@parcel/transformer-typescript-types": "2.13.3",
+    "@types/semver": "^7.5.8",
+    "eslint": "^9.18.0",
+    "eslint-config-prettier": "^10.0.1",
+    "globals": "^15.14.0",
+    "parcel": "^2.13.3",
+    "prettier": "^3.4.2",
+    "typedoc": "^0.27.6",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.21.0"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "semver": "^7.6.3"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "entryPoints": ["src/index.ts"],
+  "exclude": ["dist/**"],
+  "out": "docs",
+  "readme": "none",
+  "navigation": {
+    "includeCategories": true
+  },
+  "defaultCategory": "Type",
+  "categoryOrder": [
+    "Client",
+    "Lib",
+    "Type"
+  ],
+  "compilerOptions": {
+    "preserveConstEnums": true
+  }
+}
