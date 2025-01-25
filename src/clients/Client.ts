@@ -89,14 +89,24 @@ export class Not3Client {
   }
 
   /**
+   * Get the semver satisfying version range for the API.
+   * @returns The version range.
+   */
+  getVersionRange(): string {
+    return '>=2.0.0 <3.0.0';
+  }
+
+  /**
    * Check if the API is compatible with this version of the SDK.
+   * If the API responds with the version 'IN-DEV', it is always considered compatible.
+   * @param api The SystemAPI instance, used to keep the cache of the info response.
    * @returns Whether the API is compatible.
    */
-  async isCompatible(): Promise<boolean> {
+  async isCompatible(api?: SystemAPI): Promise<boolean> {
     try {
-      const info = await this.system().info();
+      const info = await (api || this.system()).info();
       if (info.version === 'IN-DEV') return true;
-      return semver.satisfies(info.version, '>=2.0.0 <3.0.0');
+      return semver.satisfies(info.version, this.getVersionRange());
     } catch {
       return false;
     }
