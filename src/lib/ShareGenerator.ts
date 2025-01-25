@@ -10,12 +10,11 @@ export class ShareGenerator {
   /**
    * Generate a link to share a note in the ui.
    */
-  noteUi(noteId: string, seed: string, selfDestruct = false): string {
-    const fragment = new FragmentData({
-      secret: seed,
+  noteUi(noteId: string, fragment: FragmentData|string): string {
+    fragment = typeof fragment === 'string' ? new FragmentData({
+      seed: fragment,
       server: this.opts.storeServer ? this.opts.apiUrl : undefined,
-      selfDestruct: selfDestruct ? true : undefined,
-    });
+    }) : fragment;
     return `${this.opts.uiUrl}q/${noteId}#${fragment.toString()}`;
   }
 
@@ -24,7 +23,7 @@ export class ShareGenerator {
    */
   fileUi(fileId: string, seed: string): string {
     const fragment = new FragmentData({
-      secret: seed,
+      seed: seed,
       server: this.opts.storeServer ? this.opts.apiUrl : undefined,
     });
     return `${this.opts.uiUrl}f/${fileId}#${fragment.toString()}`;
