@@ -7,13 +7,17 @@ import { SubClient } from '../lib/SubClient';
  * @see {@link Not3Client.system}
  */
 export class SystemAPI extends SubClient {
+  private infoCache: InfoResponse | null = null;
+
   /**
    * Get system base information.
    * @throws AxiosError If the request fails.
    * @returns The system information.
    */
   async info(): Promise<InfoResponse> {
+    if (this.infoCache) return this.infoCache;
     const res = await this.api.get('info');
+    this.infoCache = res.data;
     return res.data;
   }
 
