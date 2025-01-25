@@ -1,7 +1,11 @@
-ci: .github/workflows/*
-lib: src/lib/**
-types: src/types/**
-code: src/**
+ci:
+  - .github/workflows/*
+lib:
+  - src/lib/**
+types:
+  - src/types/**
+code:
+  - src/**
 package:
   - package.json
   - pnpm-lock.yaml
