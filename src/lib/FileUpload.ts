@@ -1,7 +1,7 @@
 import { FilesAPI } from "../clients/Files";
 import { GetBytesFn } from "../types/sdk/GetBytesFn";
 import { FileUploadProgress, FileUploadProgressHook, FileUploadState } from "../types/sdk/Progress";
-import { CryptoCBC } from "./CryptoCBC";
+import { Crypto } from "./Crypto";
 
 /**
  * The FileUpload class is a helper to split files into chunks,
@@ -17,9 +17,9 @@ export class FileUpload {
 
   /**
    * The size of each chunk to upload, minus the AES header size.
-   * @default CHUNK_SIZE - CryptoCBC.AES_HEADER_BYTES
+   * @default CHUNK_SIZE - Crypto.AES_CBC_HEADER_BYTES
    */
-  static readonly ACTUAL_CHUNK_SIZE = FileUpload.CHUNK_SIZE - CryptoCBC.AES_HEADER_BYTES;
+  static readonly ACTUAL_CHUNK_SIZE = FileUpload.CHUNK_SIZE - Crypto.AES_CBC_HEADER_BYTES;
 
   private progressHook: FileUploadProgressHook | null = null;
   private progress: FileUploadProgress = {};
@@ -44,7 +44,7 @@ export class FileUpload {
     private readonly size: number,
     private readonly parallelUploads = 1,
     private readonly cancelOnError = true,
-    private readonly seed = CryptoCBC.generateSeed(),
+    private readonly seed = Crypto.generateSeed(),
   ) {}
 
   private errorIfNotStarted() {
@@ -157,7 +157,7 @@ export class FileUpload {
     try {
       let current = 0;
       const total = this.getChunkCount();
-      const key = await CryptoCBC.generateKey(this.seed);
+      const key = await Crypto.generateKey(this.seed);
       let lastError: Error|null = null;
       const worker = async () => {
         let i = -1;
@@ -177,7 +177,7 @@ export class FileUpload {
 
             this.setProgress(i, 'crypto');
             if (this.cancelled || this.crashed) break;
-            const encrypted = await CryptoCBC.encrypt(data, key);
+            const encrypted = await Crypto.encrypt(data, key);
 
             this.setProgress(i, 'upload');
             if (this.cancelled || this.crashed) break;

@@ -1,8 +1,8 @@
 import { FilesAPI } from "../clients/Files";
 import { FileGetResponse } from "../types/api";
 import { SetBytesFn } from "../types/sdk/SetBytesFn";
-import { CryptoCBC } from "./CryptoCBC";
 import { FileUpload } from "./FileUpload";
+import { Crypto } from "./Crypto";
 
 /**
  * The FileDownload class is a helper to download and decrypt files from the server.
@@ -63,7 +63,7 @@ export class FileDownload {
    */
   async start(setBytes: SetBytesFn): Promise<void> {
     this.errorIfNotPrepared();
-    const key = await CryptoCBC.generateKey(this.seed);
+    const key = await Crypto.generateKey(this.seed);
     const res = await fetch(this.file.url);
     const reader = res.body.getReader();
     let accumulated = new Uint8Array();
@@ -79,7 +79,7 @@ export class FileDownload {
       while (accumulated.length >= FileUpload.CHUNK_SIZE) {
         const chunk = accumulated.slice(0, FileUpload.CHUNK_SIZE);
         accumulated = accumulated.slice(FileUpload.CHUNK_SIZE);
-        const decrypted = await CryptoCBC.decrypt(chunk.buffer, key);
+        const decrypted = await Crypto.decrypt(chunk.buffer, key);
         await setBytes(decrypted, index);
         index++;
         await tick();
@@ -87,7 +87,7 @@ export class FileDownload {
       await tick();
     }
     if (accumulated.length) {
-      const decrypted = await CryptoCBC.decrypt(accumulated.buffer, key);
+      const decrypted = await Crypto.decrypt(accumulated.buffer, key);
       await setBytes(decrypted, index);
     }
   }
