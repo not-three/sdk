@@ -12,4 +12,5 @@ export default [
   ...tseslint.configs.recommended,
   {rules: {"semi": ["error", "always"]}},
   eslintConfigPrettier,
+  {plugins: ["jest"]},
 ];

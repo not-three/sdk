@@ -32,6 +32,9 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Run Test
+        run: pnpm test
+
       - name: Publish documentation
         uses: peaceiris/actions-gh-pages@v4
         with:
