@@ -5,6 +5,8 @@ import { FragmentData } from "./FragmentData";
  * @category Lib
  */
 export class ShareGenerator {
+  readonly SCRIPT_URL = 'https://raw.githubusercontent.com/not-three/main/refs/heads/main/scripts/';
+
   constructor(private readonly opts: ShareOptions) {}
 
   /**
@@ -29,30 +31,32 @@ export class ShareGenerator {
     return `${this.opts.uiUrl}f/${fileId}#${fragment.toString()}`;
   }
 
-  // /**
-  //  * Generate a command to print a note with curl, using openssl to decrypt it.
-  //  */
-  // noteCurl(noteId: string, seed: string): string {
-  //   return [
-  //     `curl ${this.opts.apiUrl}note/${noteId}/raw`,
-  //   ].join(' ');
-  // }
-
-  // /**
-  //  * Generate a command to print a note with curl, using openssl to decrypt it.
-  //  */
-  // noteCurlSave(noteId: string, seed: string, fileName: string): string {
-  //   return this.noteCurl(noteId, seed) + ` > ${fileName}`;
-  // }
+  /**
+   * Generate a command to print a note with curl, using openssl to decrypt it.
+   */
+  noteCurl(noteId: string, seed: string): string {
+    return [
+      `curl ${this.SCRIPT_URL}decrypt-note.sh`,
+      `| bash -s ${this.opts.apiUrl}note/${noteId}/raw ${seed}`,
+    ].join(' ');
+  }
 
   /**
-  //  * Generate a command to download a file with curl, using openssl to decrypt it.
-  //  */
-  // fileCurl(fileId: string, seed: string, fileName: string): string {
-  //   return [
-  //     `curl ${this.opts.apiUrl}file/${fileId}`,
-  //   ].join(' ');
-  // }
+   * Generate a command to download a note with curl, using openssl to decrypt it.
+   */
+  noteCurlSave(noteId: string, seed: string, fileName: string): string {
+    return this.noteCurl(noteId, seed) + ` > ${fileName}`;
+  }
+
+  /**
+   * Generate a command to download a file with curl, using openssl to decrypt it.
+   */
+  fileCurl(fileId: string, seed: string, fileName: string): string {
+    return [
+      `curl ${this.SCRIPT_URL}decrypt-file.sh`,
+      `| bash -s ${this.opts.apiUrl}file/${fileId} ${seed} ${fileName}`,
+    ].join(' ');
+  }
 
   /**
    * Generate a server side decryption url for a note.
