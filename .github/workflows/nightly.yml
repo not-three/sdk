@@ -16,7 +16,7 @@ jobs:
       id-token: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install node
         uses: actions/setup-node@v4
@@ -42,4 +42,3 @@ jobs:
           publish_dir: ./docs
           destination_dir: nightly
           publish_branch: docs
-          force_orphan: true
