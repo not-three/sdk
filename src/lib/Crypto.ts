@@ -60,8 +60,13 @@ export class Crypto {
    * @param buffer The buffer to convert
    * @returns The base64 string
    */
-  static buf2base(buffer: Uint8Array<ArrayBuffer>): string {
-    return btoa(String.fromCharCode(...new Uint8Array(buffer)));
+  static buf2base(buffer: Uint8Array): string {
+    let binary = '';
+    const len = buffer.byteLength;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(buffer[i]);
+    }
+    return btoa(binary);
   }
 
   /**
