@@ -15,10 +15,10 @@ jobs:
       issues: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
 
@@ -26,7 +26,7 @@ jobs:
         run: npm install -g pnpm
 
       - name: Label the PR
-        uses: actions/labeler@v5
+        uses: actions/labeler@v6
 
       - name: Install dependencies
         run: pnpm install
