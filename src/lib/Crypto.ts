@@ -163,7 +163,20 @@ export class Crypto {
 
   private static async decryptString(data: string, key: CryptoKey, mode: CryptoMode): Promise<string> {
     const decrypted = await this.decryptArrayBuffer(this.base2buf(data), key, mode);
-    return new TextDecoder().decode(decrypted);
+    const bytes = new Uint8Array(decrypted);
+    try {
+      // Strict UTF-8: the encoding used by current SDK versions.
+      return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    } catch {
+      // Backward compatibility: older SDK versions serialized strings as one
+      // byte per UTF-16 code unit. If the payload is not valid UTF-8, fall back
+      // to that legacy decoding so notes written by old clients still open.
+      // A char-by-char loop is used (instead of spreading into String.fromCharCode)
+      // to avoid a call-stack overflow on large payloads.
+      let result = '';
+      for (let i = 0; i < bytes.length; i++) result += String.fromCharCode(bytes[i]);
+      return result;
+    }
   }
 
   /**

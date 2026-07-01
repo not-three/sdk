@@ -83,6 +83,7 @@ export class FilesAPI extends SubClient {
    * @param url The URL to upload the chunk to.
    * @param data The chunk data.
    * @throws AxiosError If the request fails.
+   * @throws Error If the upload response is missing an ETag header.
    * @returns The ETag of the uploaded chunk.
    */
   async uploadChunk(url: string, data: ArrayBuffer): Promise<string> {
