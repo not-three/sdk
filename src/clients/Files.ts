@@ -89,6 +89,8 @@ export class FilesAPI extends SubClient {
     const res = await axios.put(url, data, {
       headers: { 'Content-Type': 'application/octet-stream' },
     });
-    return res.headers.etag.replace(/"/g, '');
+    const etag = res.headers.etag;
+    if (!etag) throw new Error('Upload response missing ETag header');
+    return etag.replace(/"/g, '');
   }
 }
