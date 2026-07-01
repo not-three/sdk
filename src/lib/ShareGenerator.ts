@@ -62,6 +62,6 @@ export class ShareGenerator {
    * Generate a server side decryption url for a note.
    */
   noteServerSideDecrypt(noteId: string, seed: string): string {
-    return `${this.opts.apiUrl}note/${noteId}/decrypt?key=${seed}`;
+    return `${this.opts.apiUrl}note/${noteId}/decrypt?key=${encodeURIComponent(seed)}`;
   }
 }
