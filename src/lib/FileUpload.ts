@@ -150,7 +150,7 @@ export class FileUpload {
     this.errorIfFinished();
     if (this.cancelled) throw new Error('Upload already cancelled');
     this.cancelled = true;
-    await this.api.delete(this.id);
+    await this.api.delete(this.id!);
   }
 
   private async run(getBytes: GetBytesFn) {
@@ -181,7 +181,7 @@ export class FileUpload {
 
             this.setProgress(i, 'upload');
             if (this.cancelled || this.crashed) break;
-            const url = await this.api.getUploadChunkURL(this.id, encrypted.byteLength, i + 1);
+            const url = await this.api.getUploadChunkURL(this.id!, encrypted.byteLength, i + 1);
             if (this.cancelled || this.crashed) break;
             const etag = await this.api.uploadChunk(url, encrypted);
 
@@ -190,7 +190,7 @@ export class FileUpload {
         } catch (e) {
           if (i !== -1) this.setProgress(i, 'error');
           this.crashed = true;
-          lastError = e;
+          lastError = e as Error;
         }
       }
       await Promise.all(Array.from({ length: this.parallelUploads }, () => worker()));
@@ -200,7 +200,7 @@ export class FileUpload {
       const sorted = Object.entries(this.progress).sort(([a], [b]) => Number(a) - Number(b));
       const etags = sorted.map(([, { etag }]) => etag);
       if (etags.some(etag => !etag)) throw new Error('Upload incomplete');
-      await this.api.completeUpload(this.id, etags);
+      await this.api.completeUpload(this.id!, etags as string[]);
       this.finished = true;
     } catch (e) {
       if (this.cancelOnError && !this.cancelled) await this.cancel();
