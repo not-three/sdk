@@ -1,6 +1,39 @@
 const { Crypto } = require('../../dist/index.cjs');
 
 describe('Crypto', () => {
+  describe('encoding helpers', () => {
+    test('buf2base / base2buf round-trip', () => {
+      const bytes = new Uint8Array([0, 1, 2, 250, 251, 252, 253, 254, 255]);
+      const b64 = Crypto.buf2base(bytes);
+      expect(typeof b64).toBe('string');
+      const back = new Uint8Array(Crypto.base2buf(b64));
+      expect(Array.from(back)).toEqual(Array.from(bytes));
+    });
+
+    test('generateSeed returns a 32-byte base64 seed', () => {
+      const seed = Crypto.generateSeed();
+      expect(new Uint8Array(Crypto.base2buf(seed)).byteLength).toBe(Crypto.AES_SEED_LENGTH);
+      expect(Crypto.AES_SEED_LENGTH).toBe(32);
+    });
+
+    test('generateSeed is random (two seeds differ)', () => {
+      expect(Crypto.generateSeed()).not.toBe(Crypto.generateSeed());
+    });
+  });
+
+  describe('generateKey', () => {
+    test('rejects a seed of the wrong length', async () => {
+      const shortSeed = Crypto.buf2base(new Uint8Array(8));
+      await expect(Crypto.generateKey(shortSeed)).rejects.toThrow('Invalid seed length');
+    });
+
+    test('accepts a valid seed for both modes', async () => {
+      const seed = Crypto.generateSeed();
+      await expect(Crypto.generateKey(seed, 'cbc')).resolves.toBeDefined();
+      await expect(Crypto.generateKey(seed, 'gcm')).resolves.toBeDefined();
+    });
+  });
+
   ['cbc', 'gcm'].forEach(mode => {
     describe(`Crypto${mode.toUpperCase()}`, () => {
       test(`encrypt/decrypt string`, async () => {
@@ -53,6 +86,24 @@ describe('Crypto', () => {
         const encString = Crypto.buf2base(new Uint8Array(encBuffer));
         const dec = await Crypto.decrypt(encString, key, mode);
         expect(dec).toBe(msg);
+      });
+
+      test(`decrypt with the wrong key fails`, async () => {
+        const key = await Crypto.generateKey(Crypto.generateSeed(), mode);
+        const wrongKey = await Crypto.generateKey(Crypto.generateSeed(), mode);
+        const enc = await Crypto.encrypt('secret', key, mode);
+        await expect(Crypto.decrypt(enc, wrongKey, mode)).rejects.toThrow();
+      });
+
+      test(`tampering with the ciphertext is detected`, async () => {
+        const seed = Crypto.generateSeed();
+        const key = await Crypto.generateKey(seed, mode);
+        const enc = new Uint8Array(await Crypto.encrypt(
+          new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]).buffer, key, mode,
+        ));
+        // Flip a byte in the encrypted body (past the IV).
+        enc[enc.length - 1] ^= 0xff;
+        await expect(Crypto.decrypt(enc.buffer, key, mode)).rejects.toThrow();
       });
     });
   });
