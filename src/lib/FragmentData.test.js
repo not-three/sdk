@@ -69,7 +69,23 @@ describe('FragmentData', () => {
       expect(parsed.cryptoMode).toBe('gcm');
     });
 
-    test('round-trips seeds containing "+" and "/" (500 random seeds)', () => {
+    test('round-trips seeds containing "+", "/" and "=" (deterministic)', () => {
+      // These are the base64 characters that are unsafe in a query string:
+      // '+' would otherwise decode back to a space. Cover them explicitly so
+      // the edge case is exercised on every run, not just probabilistically.
+      const seeds = [
+        'ab+cd/ef==',
+        '+++///===',
+        'In89tNsi54tjvgOsNZ/ykCGgqokz7rzD+iu8YPOtu8s=',
+        'a+b/c+d/e+f/=',
+      ];
+      for (const seed of seeds) {
+        const url = `https://ui/#${new FragmentData({ seed }).toString()}`;
+        expect(FragmentData.fromURL(url).seed).toBe(seed);
+      }
+    });
+
+    test('round-trips arbitrary generated seeds (fuzz, 500 random)', () => {
       for (let i = 0; i < 500; i++) {
         const seed = Crypto.generateSeed();
         const url = `https://ui/#${new FragmentData({ seed }).toString()}`;
