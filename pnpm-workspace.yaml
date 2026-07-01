@@ -1,3 +1,18 @@
+allowBuilds:
+  '@hyperjump/json-pointer': true
+  '@hyperjump/json-schema': true
+  '@hyperjump/json-schema-core': true
+  '@hyperjump/pact': true
+  '@parcel/watcher': true
+  '@scarf/scarf': true
+  '@swc/core': true
+  lmdb: true
+  msgpackr-extract: true
+  protobufjs: true
+  unrs-resolver: true
+minimumReleaseAgeExclude:
+  - ajv@6.12.3 || 6.14.0
+  - jsonpath-plus@10.2.0 || 10.3.0
 onlyBuiltDependencies:
   - '@hyperjump/json-pointer'
   - '@hyperjump/json-schema'
@@ -9,3 +24,8 @@ onlyBuiltDependencies:
   - msgpackr-extract
   - protobufjs
   - unrs-resolver
+overrides:
+  ajv@<6.12.3: ^6.12.3
+  ajv@<6.14.0: ^6.14.0
+  jsonpath-plus@<10.2.0: ^10.2.0
+  jsonpath-plus@<10.3.0: ^10.3.0
