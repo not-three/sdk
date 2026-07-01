@@ -22,6 +22,38 @@ describe('Crypto', () => {
           expect(dec[i]).toBe(buffer[i]);
         }
       });
+
+      test(`encrypt/decrypt unicode string`, async () => {
+        const msg = 'Héllo 世界 🌍 café — ñ';
+        const seed = Crypto.generateSeed();
+        const key = await Crypto.generateKey(seed, mode);
+        const enc = await Crypto.encrypt(msg, key, mode);
+        const dec = await Crypto.decrypt(enc, key, mode);
+        expect(dec).toBe(msg);
+      });
+
+      test(`encrypt/decrypt large string`, async () => {
+        const msg = 'a'.repeat(300000);
+        const seed = Crypto.generateSeed();
+        const key = await Crypto.generateKey(seed, mode);
+        const enc = await Crypto.encrypt(msg, key, mode);
+        const dec = await Crypto.decrypt(enc, key, mode);
+        expect(dec).toBe(msg);
+      });
+
+      test(`decrypts legacy (pre-UTF-8) Latin-1 payloads`, async () => {
+        // Reproduce how older SDK versions serialized strings: one byte per
+        // UTF-16 code unit. Latin-1 characters (128-255) round-tripped before
+        // the UTF-8 switch, so they must still decode after it.
+        const msg = 'café é ñ';
+        const seed = Crypto.generateSeed();
+        const key = await Crypto.generateKey(seed, mode);
+        const legacyBytes = new Uint8Array([...msg].map(c => c.charCodeAt(0)));
+        const encBuffer = await Crypto.encrypt(legacyBytes.buffer, key, mode);
+        const encString = Crypto.buf2base(new Uint8Array(encBuffer));
+        const dec = await Crypto.decrypt(encString, key, mode);
+        expect(dec).toBe(msg);
+      });
     });
   });
 });
