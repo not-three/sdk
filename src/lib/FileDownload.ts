@@ -36,7 +36,7 @@ export class FileDownload {
    */
   getFileMetadata(): FileGetResponse {
     this.errorIfNotPrepared();
-    return this.file;
+    return this.file!;
   }
 
   /**
@@ -64,8 +64,8 @@ export class FileDownload {
   async start(setBytes: SetBytesFn): Promise<void> {
     this.errorIfNotPrepared();
     const key = await Crypto.generateKey(this.seed);
-    const res = await fetch(this.file.url);
-    const reader = res.body.getReader();
+    const res = await fetch(this.file!.url);
+    const reader = res.body!.getReader();
     let accumulated = new Uint8Array();
     let index = 0;
     const tick = () => new Promise(resolve => setTimeout(resolve, 0));

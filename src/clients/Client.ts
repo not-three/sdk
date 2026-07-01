@@ -9,8 +9,8 @@ import semver from 'semver';
  * @category Client
  */
 export class Not3Client {
-  private api: AxiosInstance;
-  private options: ClientOptions;
+  private api!: AxiosInstance;
+  private options!: ClientOptions;
 
   /**
    * The main client class to interact with the Not3 API.
