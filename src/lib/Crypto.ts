@@ -123,7 +123,7 @@ export class Crypto {
   }
 
   private static async encryptString(data: string, key: CryptoKey, mode: CryptoMode): Promise<string> {
-    const encrypted = await this.encryptArrayBuffer((new Uint8Array([...data].map(c => c.charCodeAt(0)))).buffer, key, mode);
+    const encrypted = await this.encryptArrayBuffer(new TextEncoder().encode(data).buffer as ArrayBuffer, key, mode);
     return this.buf2base(new Uint8Array(encrypted));
   }
 
@@ -163,7 +163,7 @@ export class Crypto {
 
   private static async decryptString(data: string, key: CryptoKey, mode: CryptoMode): Promise<string> {
     const decrypted = await this.decryptArrayBuffer(this.base2buf(data), key, mode);
-    return String.fromCharCode(...new Uint8Array(decrypted));
+    return new TextDecoder().decode(decrypted);
   }
 
   /**

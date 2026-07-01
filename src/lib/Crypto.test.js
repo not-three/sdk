@@ -22,6 +22,24 @@ describe('Crypto', () => {
           expect(dec[i]).toBe(buffer[i]);
         }
       });
+
+      test(`encrypt/decrypt unicode string`, async () => {
+        const msg = 'Héllo 世界 🌍 café — ñ';
+        const seed = Crypto.generateSeed();
+        const key = await Crypto.generateKey(seed, mode);
+        const enc = await Crypto.encrypt(msg, key, mode);
+        const dec = await Crypto.decrypt(enc, key, mode);
+        expect(dec).toBe(msg);
+      });
+
+      test(`encrypt/decrypt large string`, async () => {
+        const msg = 'a'.repeat(300000);
+        const seed = Crypto.generateSeed();
+        const key = await Crypto.generateKey(seed, mode);
+        const enc = await Crypto.encrypt(msg, key, mode);
+        const dec = await Crypto.decrypt(enc, key, mode);
+        expect(dec).toBe(msg);
+      });
     });
   });
 });
