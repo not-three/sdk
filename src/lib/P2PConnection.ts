@@ -5,7 +5,6 @@ import { RTCFactory } from '../types/sdk/P2P';
 
 /**
  * The established peer connection and its open data channel.
- * @category Lib
  */
 export interface P2PConnectResult {
   /** The peer connection, kept so the caller can close it. */

@@ -2,7 +2,6 @@ import { p2pErrorFromGatewayCode } from './P2PErrors';
 
 /**
  * The session details handed out by the gateway on `create`/`join`.
- * @category Lib
  */
 export interface P2PSessionGrant {
   /** The id of the P2P session. */
