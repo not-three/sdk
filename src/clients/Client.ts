@@ -3,6 +3,7 @@ import { ClientOptions } from '../types/sdk/ClientOptions';
 import { NotesAPI } from './Notes';
 import { SystemAPI } from './System';
 import { FilesAPI } from './Files';
+import { P2PClient } from './P2P';
 import semver from 'semver';
 
 /**
@@ -86,6 +87,14 @@ export class Not3Client {
    */
   files(): FilesAPI {
     return new FilesAPI(this.api, this.options);
+  }
+
+  /**
+   * Get a sub-client to interact with the P2P transfer feature.
+   * @returns The P2P client.
+   */
+  p2p(): P2PClient {
+    return new P2PClient(this.api, this.options);
   }
 
   /**

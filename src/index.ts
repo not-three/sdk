@@ -12,6 +12,7 @@ export * from './clients/Client';
 export * from './clients/Files';
 export * from './clients/Notes';
 export * from './clients/System';
+export * from './clients/P2P';
 export * from './lib/FragmentData';
 export * from './lib/SubClient';
 export * from './lib/Crypto';
