@@ -103,4 +103,21 @@ describe('FragmentData', () => {
       expect(() => FragmentData.fromURL(`https://ui/#${fragment}`)).toThrow('Seed is required');
     });
   });
+
+  describe('p2p flag', () => {
+    test('p2p flag defaults to false', () => {
+      const f = new FragmentData({ seed: 'abc' });
+      expect(f.p2p).toBe(false);
+      expect(atob(f.toString())).not.toContain('p=');
+    });
+
+    test('p2p flag round-trips through toString/fromURL', () => {
+      const f = new FragmentData({ seed: 'abc', p2p: true, cryptoMode: 'gcm' });
+      const url = `https://ui.example/f/xyz#${f.toString()}`;
+      const parsed = FragmentData.fromURL(url);
+      expect(parsed.p2p).toBe(true);
+      expect(parsed.seed).toBe('abc');
+      expect(parsed.cryptoMode).toBe('gcm');
+    });
+  });
 });
