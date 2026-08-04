@@ -22,5 +22,6 @@ export * from './lib/ShareGenerator';
 export * from './lib/P2PErrors';
 export * from './lib/P2PProtocol';
 export * from './lib/P2PSignaling';
+export * from './lib/P2PConnection';
 
 export default Not3ClientImport;
