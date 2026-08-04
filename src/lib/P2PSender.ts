@@ -252,6 +252,7 @@ export class P2PSender {
     });
 
     await this.waitForAccept(s);
+    await this.drain(s);
     if (s.error) throw s.error;
     // A joiner that cannot speak the seed is dropped; the session survives.
     if (!s.accepted) return 'retry';
@@ -262,7 +263,7 @@ export class P2PSender {
     for (;;) {
       while (s.nextChunk < s.chunkCount) {
         if (s.error) throw s.error;
-        if (s.dead) return 'retry';
+        if (s.dead) return this.onDead(s);
         const index = s.nextChunk;
         const start = index * chunkPayloadSize;
         const end = Math.min(start + chunkPayloadSize, this.size);
@@ -273,7 +274,7 @@ export class P2PSender {
         );
         await this.waitDrain(channel, s);
         if (s.error) throw s.error;
-        if (s.dead) return 'retry';
+        if (s.dead) return this.onDead(s);
         // A nack may have rewound us while we were reading and encrypting.
         if (s.nextChunk !== index) continue;
         channel.send(encrypted);
@@ -284,11 +285,29 @@ export class P2PSender {
 
       await this.sendControl({ t: 'done', chunkCount: s.chunkCount });
       await this.park(s);
+      await this.drain(s);
       if (s.error) throw s.error;
       if (s.completed) return 'complete';
       if (s.dead) return 'retry';
       // Otherwise a nack rewound us: stream the missing range again.
     }
+  }
+
+  /**
+   * A dead channel is only the end of the story once every frame that was
+   * already in flight has been decrypted — the peer's parting `abort` or
+   * `complete` routinely races its own channel close.
+   */
+  private async onDead(s: PeerSession): Promise<ServeResult> {
+    await this.drain(s);
+    if (s.error) throw s.error;
+    if (s.completed) return 'complete';
+    return 'retry';
+  }
+
+  /** Wait for every control frame received so far to finish being handled. */
+  private async drain(s: PeerSession): Promise<void> {
+    await s.queue;
   }
 
   private async handleControl(raw: string, s: PeerSession): Promise<void> {

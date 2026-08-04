@@ -157,8 +157,8 @@ export class P2PReceiver {
 
     const signaling = new P2PSignaling(this.p2p.gatewayUrl(), this.p2p.webSocketCtor());
     this.signaling = signaling;
-    signaling.onClose = () => this.fail(new P2PPeerDisconnectedError());
-    signaling.onPeerLeft = () => this.fail(new P2PPeerDisconnectedError());
+    signaling.onClose = () => this.failLater(new P2PPeerDisconnectedError());
+    signaling.onPeerLeft = () => this.failLater(new P2PPeerDisconnectedError());
     await signaling.connect();
     const grant = await signaling.join(this.sessionId);
     if (this.cancelled) throw new P2PCancelledError();
@@ -173,13 +173,22 @@ export class P2PReceiver {
     this.pc = pc;
     this.channel = channel;
     channel.onmessage = (ev: MessageEvent) => this.enqueue(ev.data);
-    channel.onclose = () => this.fail(new P2PPeerDisconnectedError());
+    channel.onclose = () => this.failLater(new P2PPeerDisconnectedError());
 
     // The peer must produce a meta message that decrypts under our seed.
     this.controlTimer = setTimeout(
       () => this.fail(new P2PConnectTimeoutError()),
       P2PProtocol.CONTROL_TIMEOUT_MS,
     );
+  }
+
+  /**
+   * Fail once every frame received so far has been handled. A peer's parting
+   * `abort` or `done` routinely races the channel close that follows it, and
+   * the frame carries the better explanation.
+   */
+  private failLater(error: Error): void {
+    this.queue = this.queue.then(() => this.fail(error));
   }
 
   private enqueue(data: unknown): void {
