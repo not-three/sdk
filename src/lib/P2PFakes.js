@@ -79,7 +79,8 @@ class FakeDataChannel {
     this._drainScheduled = true;
     setTimeout(() => {
       this._drainScheduled = false;
-      this.drain();
+      // Re-check: a test may have switched to manual draining in the meantime.
+      if (this.autoDrain) this.drain();
     }, 0);
   }
 
