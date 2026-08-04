@@ -32,6 +32,19 @@ export class ShareGenerator {
   }
 
   /**
+   * Generate a link to receive a live P2P transfer in the ui.
+   */
+  p2pUi(sessionId: string, seed: string): string {
+    const fragment = new FragmentData({
+      seed,
+      server: this.opts.storeServer ? this.opts.apiUrl : undefined,
+      cryptoMode: 'gcm',
+      p2p: true,
+    });
+    return `${this.opts.uiUrl}f/${sessionId}#${fragment.toString()}`;
+  }
+
+  /**
    * Generate a command to print a note with curl, using openssl to decrypt it.
    */
   noteCurl(noteId: string, seed: string): string {
