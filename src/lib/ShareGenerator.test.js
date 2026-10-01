@@ -66,6 +66,24 @@ describe('ShareGenerator', () => {
     });
   });
 
+  describe('p2pUi', () => {
+    test('p2pUi builds an /f/ link whose fragment has the p2p flag and gcm mode', () => {
+      const gen = new ShareGenerator({ apiUrl: 'https://api.x/', uiUrl: 'https://ui.x/', storeServer: false });
+      const link = gen.p2pUi('sess1', 'seedvalue');
+      expect(link.startsWith('https://ui.x/f/sess1#')).toBe(true);
+      const frag = FragmentData.fromURL(link);
+      expect(frag.p2p).toBe(true);
+      expect(frag.cryptoMode).toBe('gcm');
+      expect(frag.seed).toBe('seedvalue');
+      expect(frag.server).toBe(null);
+    });
+
+    test('p2pUi embeds the api server when storeServer is set', () => {
+      const gen = new ShareGenerator({ apiUrl: 'https://api.x/', uiUrl: 'https://ui.x/', storeServer: true });
+      expect(FragmentData.fromURL(gen.p2pUi('s', 'k')).server).toBe('https://api.x/');
+    });
+  });
+
   describe('noteServerSideDecrypt', () => {
     test('percent-encodes the seed', () => {
       const seed = 'ab+cd/ef==';

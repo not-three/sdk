@@ -18,8 +18,9 @@ export class FragmentData {
     const server = params.get('s');
     const selfDestruct = params.has('d');
     const cryptoMode = params.get('m') as CryptoMode;
+    const p2p = params.has('p');
     if (!seed) throw new Error('Seed is required');
-    return new FragmentData({ seed, server, selfDestruct, cryptoMode });
+    return new FragmentData({ seed, server, selfDestruct, cryptoMode, p2p });
   }
 
   /**
@@ -46,6 +47,12 @@ export class FragmentData {
   readonly cryptoMode: CryptoMode;
 
   /**
+   * Whether this fragment refers to a live P2P transfer session.
+   * @default false
+   */
+  readonly p2p: boolean;
+
+  /**
    * Create a new fragment.
    * @param options The options to create the fragment.
    */
@@ -54,11 +61,13 @@ export class FragmentData {
     server?: string | null;
     selfDestruct?: boolean;
     cryptoMode?: CryptoMode;
+    p2p?: boolean;
   }) {
     this.seed = options.seed;
     this.server = options.server || null;
     this.selfDestruct = options.selfDestruct || false;
     this.cryptoMode = options.cryptoMode || 'cbc';
+    this.p2p = options.p2p || false;
   }
 
   /**
@@ -71,6 +80,7 @@ export class FragmentData {
     if (this.server) params.append('s', this.server);
     if (this.selfDestruct) params.append('d', '1');
     if (this.cryptoMode !== 'cbc') params.append('m', this.cryptoMode);
+    if (this.p2p) params.append('p', '1');
     return btoa(params.toString());
   }
 }
