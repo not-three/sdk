@@ -298,10 +298,21 @@ export class P2PReceiver {
       this.fail(new P2PTransferCorruptedError());
       return;
     }
-    await this.sendControl({ t: 'complete' });
+    // Install the completion close handlers in the same turn as send(): the
+    // sender may receive `complete` and close before another awaited callback.
+    const channel = this.channel;
+    if (!channel || channel.readyState !== 'open') throw new P2PPeerDisconnectedError();
+    const complete = await P2PProtocol.encryptControl({ t: 'complete' }, this.key!);
+    if (channel.readyState !== 'open') throw new P2PPeerDisconnectedError();
+    channel.send(complete);
+    // Keep the channel alive until the sender closes it after processing
+    // `complete`. Closing it immediately can discard the queued control frame.
+    // Older senders also close on completion; bound the wait if the peer does not.
+    channel.onclose = () => this.finish();
+    this.signaling!.onPeerLeft = () => this.finish();
+    this.controlTimer = setTimeout(() => this.finish(), P2PProtocol.CONTROL_TIMEOUT_MS);
     this.setState('done');
     await this.emitProgress();
-    this.finish();
   }
 
   private async sendControl(msg: P2PControlMessage): Promise<void> {

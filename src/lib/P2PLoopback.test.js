@@ -77,7 +77,58 @@ const readerFor = (data) => async (start, end) => data.slice(start, end).buffer;
 /** The sender's end of the most recently created fake link. */
 const senderChannel = (rtc) => rtc.pairs[rtc.pairs.length - 1].hub.sender._localChannel;
 
+const tick = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 describe('P2P loopback', () => {
+  test('receiver completion close cannot leave a fully delivered sender waiting forever', async () => {
+    const oldTimeout = P2PProtocol.CONTROL_TIMEOUT_MS;
+    P2PProtocol.CONTROL_TIMEOUT_MS = 50;
+    const data = randomBytes(CPS + 7);
+    const { rtc, senderP2P, receiverP2P } = setup();
+    const sender = new P2PSender(senderP2P, 'close-race.bin', data.length);
+    const progress = record(sender);
+    const sendDone = sender.start(readerFor(data));
+    sendDone.catch(() => {});
+    const deliveredControls = [];
+    let receiverChannel;
+    try {
+      await progress.waitFor('waiting-peer');
+      const receiver = new P2PReceiver(receiverP2P, sender.getSessionId(), sender.getSeed());
+      receiver.onProgress((p) => {
+        if (p.state === 'transfer' && !receiverChannel) {
+          // Browser delivery is asynchronous after send(); the receiver closes
+          // before its final complete frame can reach the sender.
+          receiverChannel = rtc.pairs[0].hub.receiver._remoteChannel;
+          receiverChannel.deliveryDelayMs = 10;
+          const senderSide = senderChannel(rtc);
+          const handle = senderSide.onmessage;
+          senderSide.onmessage = (ev) => {
+            if (typeof ev.data === 'string') deliveredControls.push(ev.data);
+            handle(ev);
+          };
+        }
+      });
+      const received = [];
+      await receiver.start(async (buf) => { received.push(Buffer.from(new Uint8Array(buf))); });
+      expect(Buffer.compare(Buffer.concat(received), Buffer.from(data))).toBe(0);
+      await Promise.race([
+        sendDone,
+        tick(200).then(() => { throw new Error('sender remained pending after receiver closed'); }),
+      ]);
+      expect(sender.getProgress().state).toBe('done');
+      const key = await Crypto.generateKey(sender.getSeed(), 'gcm');
+      const sent = await Promise.all(receiverChannel.sent.filter((frame) => typeof frame === 'string')
+        .map((frame) => P2PProtocol.decryptControl(frame, key)));
+      const delivered = await Promise.all(deliveredControls
+        .map((frame) => P2PProtocol.decryptControl(frame, key)));
+      expect(sent).toContainEqual({ t: 'complete' });
+      expect(delivered).toContainEqual({ t: 'complete' });
+    } finally {
+      await sender.cancel();
+      P2PProtocol.CONTROL_TIMEOUT_MS = oldTimeout;
+    }
+  });
+
   test('transfers a 1 MiB file byte-identically', async () => {
     const size = 1024 * 1024;
     const data = randomBytes(size);
