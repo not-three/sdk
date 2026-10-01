@@ -73,7 +73,7 @@ async function harness(opts = {}) {
     return new Script(channel, key);
   })();
 
-  return { receiver, seed, key, script };
+  return { receiver, seed, key, server, script };
 }
 
 /** Start the receiver, recording every write and progress state. */
@@ -89,6 +89,18 @@ function collect(receiver, resumeOffset) {
 }
 
 describe('P2PReceiver', () => {
+  test('a gateway error after joining reaches the transfer caller', async () => {
+    const { receiver, server, script } = await harness();
+    const { done } = collect(receiver);
+    await script;
+
+    server.sockets.find((socket) => socket.role === 'receiver').deliver({
+      type: 'error', code: 'invalid-message',
+    });
+
+    await expect(done).rejects.toMatchObject({ code: 'invalid-message' });
+  });
+
   test('happy path: meta, accept, three chunks, done, complete', async () => {
     const { receiver, script } = await harness();
     const size = Math.floor(CPS * 2.5);

@@ -157,7 +157,7 @@ export class P2PReceiver {
 
     const signaling = new P2PSignaling(this.p2p.gatewayUrl(), this.p2p.webSocketCtor());
     this.signaling = signaling;
-    signaling.onClose = () => this.failLater(new P2PPeerDisconnectedError());
+    signaling.onClose = (error) => this.failLater(error ?? new P2PPeerDisconnectedError());
     signaling.onPeerLeft = () => this.failLater(new P2PPeerDisconnectedError());
     await signaling.connect();
     const grant = await signaling.join(this.sessionId);

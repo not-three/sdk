@@ -108,7 +108,7 @@ async function harness({ name = 'file.bin', size, seed, maxMessageSize = MAX_MES
     if (p.state === 'waiting-peer') waitingResolve();
   });
 
-  return { sender, key, WS, broker, states, waitingPeer };
+  return { sender, key, WS, broker, server, states, waitingPeer };
 }
 
 async function joinAs(h) {
@@ -126,6 +126,18 @@ async function joinAs(h) {
 const readerFor = (data) => async (start, end) => data.slice(start, end).buffer;
 
 describe('P2PSender', () => {
+  test('a gateway error after creation reaches the transfer caller', async () => {
+    const h = await harness({ size: 1 });
+    const done = h.sender.start(readerFor(fixture(1)));
+    await h.waitingPeer;
+
+    h.server.sessions.get(h.sender.getSessionId()).sender.deliver({
+      type: 'error', code: 'rate-limited',
+    });
+
+    await expect(done).rejects.toMatchObject({ code: 'rate-limited' });
+  });
+
   test('happy path: meta, accept, three chunks, done, complete', async () => {
     const size = Math.floor(CPS * 2.5);
     const data = fixture(size);
