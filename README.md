@@ -19,14 +19,32 @@ large the file is, transfers resume after a dropped connection, and every
 chunk is validated on arrival. `Not3Client.p2p()` reports whether the
 connected server has the feature enabled.
 
-The SDK codes against the standard `WebSocket` and `RTCPeerConnection` APIs
-and adds no runtime dependencies. Browsers need nothing extra. In Node,
-`WebSocket` is built in from v22, but there is no `RTCPeerConnection` — pass
-your own through the `rtc` client option (and `webSocket`, if needed):
+In a browser, pass a selected `File` to a sender. Share its session ID and
+seed with the receiver after the session reaches `waiting-peer`:
 
 ```ts
+import { Not3Client, P2PSender } from '@not3/sdk';
+
+const client = new Not3Client({ baseUrl: 'https://api.example.com/' });
+const sender = new P2PSender(client.p2p(), file.name, file.size);
+sender.onProgress(({ state }) => {
+  if (state === 'waiting-peer') {
+    console.log(sender.getSessionId(), sender.getSeed());
+  }
+});
+await sender.start((start, end) => file.slice(start, end).arrayBuffer());
+```
+
+The SDK uses the standard `WebSocket` and `RTCPeerConnection` APIs without
+adding runtime dependencies. In Node, inject implementations of both APIs
+from your chosen libraries:
+
+```ts
+import { Not3Client } from '@not3/sdk';
+
 const client = new Not3Client({
   baseUrl: 'https://api.example.com/',
-  rtc: (config) => new SomeNodeWebRTC(config),
+  rtc: (config) => new NodeRTCPeerConnection(config),
+  webSocket: NodeWebSocket,
 });
 ```

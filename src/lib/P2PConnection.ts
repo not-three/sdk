@@ -56,6 +56,9 @@ export function connectPeer(opts: P2PConnectOptions): Promise<P2PConnectResult> 
   return new Promise<P2PConnectResult>((resolve, reject) => {
     let settled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
+    let remoteDescriptionReady = false;
+    let drainingCandidates = false;
+    const pendingCandidates: RTCIceCandidateInit[] = [];
 
     const finish = (error: Error | null, result?: P2PConnectResult): void => {
       if (settled) return;
@@ -89,16 +92,29 @@ export function connectPeer(opts: P2PConnectOptions): Promise<P2PConnectResult> 
         };
     };
 
+    const drainCandidates = async (): Promise<void> => {
+      if (!remoteDescriptionReady || drainingCandidates) return;
+      drainingCandidates = true;
+      try {
+        while (pendingCandidates.length) await pc.addIceCandidate(pendingCandidates.shift()!);
+      } finally {
+        drainingCandidates = false;
+      }
+    };
+
     const handleSignal = async (payload: unknown): Promise<void> => {
       const signal = (payload ?? {}) as SignalPayload;
       if (signal.sdp) {
         await pc.setRemoteDescription(signal.sdp);
+        remoteDescriptionReady = true;
+        await drainCandidates();
         if (role === 'receiver') {
           await pc.setLocalDescription(await pc.createAnswer());
           signaling.sendSignal({ sdp: pc.localDescription });
         }
       } else if (signal.candidate) {
-        await pc.addIceCandidate(signal.candidate);
+        pendingCandidates.push(signal.candidate);
+        await drainCandidates();
       }
     };
 

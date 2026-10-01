@@ -157,7 +157,7 @@ export class P2PSender {
 
     const signaling = new P2PSignaling(this.p2p.gatewayUrl(), this.p2p.webSocketCtor());
     this.signaling = signaling;
-    signaling.onClose = () => this.fail(new P2PPeerDisconnectedError());
+    signaling.onClose = (error) => this.fail(error ?? new P2PPeerDisconnectedError());
     signaling.onPeerJoined = () => {
       this.peerGeneration++;
       this.peerPresent = true;
