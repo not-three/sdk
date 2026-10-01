@@ -29,6 +29,40 @@ describe('connectPeer', () => {
     await expect(got).resolves.toBe('hello');
   });
 
+  test('buffers a candidate until the remote SDP is installed', async () => {
+    const { a, b } = await pairedSignaling();
+    const { senderFactory, receiverFactory } = createFakeRtcPair();
+    const added = [];
+    const strictReceiver = (config) => {
+      const pc = receiverFactory(config);
+      const setRemote = pc.setRemoteDescription.bind(pc);
+      const addCandidate = pc.addIceCandidate.bind(pc);
+      pc.setRemoteDescription = async (description) => {
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        return setRemote(description);
+      };
+      pc.addIceCandidate = async (candidate) => {
+        if (!pc.remoteDescription) throw new Error('candidate before remote description');
+        added.push(candidate);
+        return addCandidate(candidate);
+      };
+      return pc;
+    };
+
+    const outcomes = await Promise.allSettled([
+      connectPeer({ role: 'sender', signaling: a, rtc: senderFactory, iceServers: [], timeoutMs: 100 }),
+      connectPeer({ role: 'receiver', signaling: b, rtc: strictReceiver, iceServers: [], timeoutMs: 100 }),
+    ]);
+    for (const outcome of outcomes) {
+      if (outcome.status === 'fulfilled') outcome.value.pc.close();
+    }
+    a.leave();
+    b.leave();
+
+    expect(outcomes.map((outcome) => outcome.status)).toEqual(['fulfilled', 'fulfilled']);
+    expect(added).toHaveLength(1);
+  });
+
   test('times out with P2PConnectTimeoutError when the peer never answers', async () => {
     const { a } = await pairedSignaling();
     const { senderFactory } = createFakeRtcPair();
