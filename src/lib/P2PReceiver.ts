@@ -71,6 +71,7 @@ export class P2PReceiver {
   private expectedIndex = 0;
   private receivedBytes = 0;
   private readonly nackCounts = new Map<number, number>();
+  private pendingNackIndex: number | null = null;
   private queue: Promise<void> = Promise.resolve();
   private controlTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -257,7 +258,7 @@ export class P2PReceiver {
     try {
       chunk = await P2PProtocol.decryptChunk(data, this.key!);
     } catch {
-      await this.nack(this.expectedIndex);
+      await this.nack(this.expectedIndex, true);
       return;
     }
     // Frames from before a rewind are stale; anything ahead means a gap.
@@ -268,18 +269,21 @@ export class P2PReceiver {
     }
     await this.setBytes!(chunk.payload, chunk.index);
     this.expectedIndex++;
+    this.pendingNackIndex = null;
     this.receivedBytes += chunk.payload.byteLength;
     this.progress.bytesTransferred = this.startOffset + this.receivedBytes;
     await this.emitProgress();
   }
 
-  private async nack(index: number): Promise<void> {
+  private async nack(index: number, corrupted = false): Promise<void> {
+    if (!corrupted && this.pendingNackIndex === index) return;
     const count = (this.nackCounts.get(index) ?? 0) + 1;
     this.nackCounts.set(index, count);
     if (count > P2PProtocol.NACK_RETRY_LIMIT) {
       this.fail(new P2PTransferCorruptedError());
       return;
     }
+    this.pendingNackIndex = index;
     await this.sendControl({ t: 'nack', index });
   }
 

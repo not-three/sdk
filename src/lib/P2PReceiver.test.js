@@ -179,6 +179,30 @@ describe('P2PReceiver', () => {
     expect(Buffer.concat(writes.map((w) => Buffer.from(w.bytes)))).toEqual(Buffer.from(data));
   });
 
+  test('one unresolved gap sends one nack despite later frames and done', async () => {
+    const { receiver, key, script } = await harness();
+    const size = CPS * 4;
+    const data = fixture(size);
+    const { writes, done } = collect(receiver);
+    const s = await script;
+    await s.send({ t: 'meta', name: 'gap.bin', size, chunkPayloadSize: CPS });
+    expect(await s.next()).toEqual({ t: 'accept', offset: 0 });
+
+    await s.sendChunk(0, chunkOf(data, 0), { corrupt: true });
+    await s.sendChunk(1, chunkOf(data, 1));
+    await s.send({ t: 'done', chunkCount: 4 });
+    for (let i = 0; i < 4; i++) await s.sendChunk(i, chunkOf(data, i));
+    await s.send({ t: 'done', chunkCount: 4 });
+    await done;
+
+    const controls = await Promise.all(
+      s.channel.peer.sent.filter((frame) => typeof frame === 'string')
+        .map((frame) => P2PProtocol.decryptControl(frame, key))
+    );
+    expect(controls.filter((msg) => msg.t === 'nack')).toEqual([{ t: 'nack', index: 0 }]);
+    expect(writes.map((write) => write.index)).toEqual([0, 1, 2, 3]);
+  });
+
   test('persistent corruption aborts with P2PTransferCorruptedError', async () => {
     const { receiver, script } = await harness();
     const size = Math.floor(CPS * 2.5);
