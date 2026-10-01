@@ -64,6 +64,7 @@ export class P2PSender {
   private started = false;
   private settled = false;
   private failure: Error | null = null;
+  private completionTimer: ReturnType<typeof setTimeout> | null = null;
 
   private peerPresent = false;
   private peerGeneration = 0;
@@ -257,6 +258,10 @@ export class P2PSender {
     // A joiner that cannot speak the seed is dropped; the session survives.
     if (!s.accepted) return 'retry';
 
+    // A fresh peer can still need chunks; the previous peer's completion
+    // deadline no longer applies once this transfer is active again.
+    this.clearCompletionTimeout();
+
     this.progress.bytesTransferred = s.nextChunk * chunkPayloadSize;
     this.setState('transfer');
 
@@ -284,12 +289,19 @@ export class P2PSender {
       }
 
       await this.sendControl({ t: 'done', chunkCount: s.chunkCount });
+      if (!s.completed && !this.completionTimer) {
+        this.completionTimer = setTimeout(
+          () => this.fail(new Error('Timed out waiting for receiver completion')),
+          P2PProtocol.CONTROL_TIMEOUT_MS,
+        );
+      }
       await this.park(s);
       await this.drain(s);
       if (s.error) throw s.error;
       if (s.completed) return 'complete';
       if (s.dead) return 'retry';
       // Otherwise a nack rewound us: stream the missing range again.
+      this.clearCompletionTimeout();
     }
   }
 
@@ -449,6 +461,12 @@ export class P2PSender {
     this.signaling = null;
   }
 
+  private clearCompletionTimeout(): void {
+    if (!this.completionTimer) return;
+    clearTimeout(this.completionTimer);
+    this.completionTimer = null;
+  }
+
   private setState(state: P2PState): void {
     this.progress.state = state;
     void this.emitProgress();
@@ -462,6 +480,7 @@ export class P2PSender {
   private finish(): void {
     if (this.settled) return;
     this.settled = true;
+    this.clearCompletionTimeout();
     this.setState('done');
     this.closeConnection();
     this.closeSignaling();
@@ -471,6 +490,7 @@ export class P2PSender {
   private fail(error: Error): void {
     if (this.settled) return;
     this.settled = true;
+    this.clearCompletionTimeout();
     this.failure = error;
     this.progress.state = 'error';
     void this.emitProgress();

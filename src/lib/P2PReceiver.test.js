@@ -115,6 +115,7 @@ describe('P2PReceiver', () => {
     for (let i = 0; i < 3; i++) await s.sendChunk(i, chunkOf(data, i));
     await s.send({ t: 'done', chunkCount: 3 });
     expect(await s.next()).toEqual({ t: 'complete' });
+    s.channel.close();
     await done;
 
     expect(writes.map((w) => w.index)).toEqual([0, 1, 2]);
@@ -140,6 +141,7 @@ describe('P2PReceiver', () => {
     for (let i = 1; i < 3; i++) await s.sendChunk(i, chunkOf(data, i));
     await s.send({ t: 'done', chunkCount: 3 });
     expect(await s.next()).toEqual({ t: 'complete' });
+    s.channel.close();
     await done;
 
     expect(writes.map((w) => w.index)).toEqual([1, 2]);
@@ -173,6 +175,7 @@ describe('P2PReceiver', () => {
     await s.sendChunk(2, chunkOf(data, 2));
     await s.send({ t: 'done', chunkCount: 3 });
     expect(await s.next()).toEqual({ t: 'complete' });
+    s.channel.close();
     await done;
 
     expect(writes.map((w) => w.index)).toEqual([0, 1, 2]);
@@ -193,6 +196,9 @@ describe('P2PReceiver', () => {
     await s.send({ t: 'done', chunkCount: 4 });
     for (let i = 0; i < 4; i++) await s.sendChunk(i, chunkOf(data, i));
     await s.send({ t: 'done', chunkCount: 4 });
+    expect(await s.next()).toEqual({ t: 'nack', index: 0 });
+    expect(await s.next()).toEqual({ t: 'complete' });
+    s.channel.close();
     await done;
 
     const controls = await Promise.all(
@@ -246,6 +252,7 @@ describe('P2PReceiver', () => {
     expect(await s.next()).toEqual({ t: 'accept', offset: 0 });
     await s.send({ t: 'done', chunkCount: 0 });
     expect(await s.next()).toEqual({ t: 'complete' });
+    s.channel.close();
     await done;
 
     expect(writes).toEqual([]);

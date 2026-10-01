@@ -26,6 +26,7 @@ class FakeDataChannel {
     this.bufferedAmount = 0;
     this.bufferedAmountLowThreshold = 0;
     this.autoDrain = true;
+    this.deliveryDelayMs = null;
     this.peer = null;
     this.onopen = null;
     this.onmessage = null;
@@ -66,10 +67,12 @@ class FakeDataChannel {
     }
 
     const peer = this.peer;
-    queueMicrotask(() => {
+    const deliver = () => {
       if (!peer || peer.readyState !== OPEN) return;
       if (peer.onmessage) peer.onmessage({ data: payload });
-    });
+    };
+    if (this.deliveryDelayMs === null) queueMicrotask(deliver);
+    else setTimeout(deliver, this.deliveryDelayMs);
 
     if (this.autoDrain) this._scheduleDrain();
   }

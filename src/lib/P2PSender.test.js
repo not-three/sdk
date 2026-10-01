@@ -126,6 +126,60 @@ async function joinAs(h) {
 const readerFor = (data) => async (start, end) => data.slice(start, end).buffer;
 
 describe('P2PSender', () => {
+  test('missing completion reply rejects within the control timeout', async () => {
+    const oldTimeout = P2PProtocol.CONTROL_TIMEOUT_MS;
+    P2PProtocol.CONTROL_TIMEOUT_MS = 50;
+    const data = fixture(CPS + 7);
+    const h = await harness({ size: data.length });
+    const done = h.sender.start(readerFor(data));
+    done.catch(() => {});
+    try {
+      const s = await joinAs(h);
+      await s.nextControl();
+      await s.send({ t: 'accept', offset: 0 });
+      await s.nextChunk();
+      await s.nextChunk();
+      expect(await s.nextControl()).toEqual({ t: 'done', chunkCount: 2 });
+      await expect(Promise.race([
+        done,
+        tick(200).then(() => { throw new Error('sender remained pending without completion'); }),
+      ])).rejects.toThrow('Timed out waiting for receiver completion');
+      expect(h.sender.getProgress().state).toBe('error');
+    } finally {
+      await h.sender.cancel();
+      P2PProtocol.CONTROL_TIMEOUT_MS = oldTimeout;
+    }
+  });
+
+  test('a close after done without completion reply also reaches the timeout', async () => {
+    const oldTimeout = P2PProtocol.CONTROL_TIMEOUT_MS;
+    P2PProtocol.CONTROL_TIMEOUT_MS = 50;
+    const data = fixture(CPS + 7);
+    const h = await harness({ size: data.length });
+    const done = h.sender.start(readerFor(data));
+    done.catch(() => {});
+    try {
+      const s = await joinAs(h);
+      await s.nextControl();
+      await s.send({ t: 'accept', offset: 0 });
+      await s.nextChunk();
+      await s.nextChunk();
+      expect(await s.nextControl()).toEqual({ t: 'done', chunkCount: 2 });
+      s.channel.close();
+      s.signaling.leave();
+      await tick(5);
+      expect(h.states.filter((state) => state === 'waiting-peer')).toHaveLength(2);
+      await expect(Promise.race([
+        done,
+        tick(200).then(() => { throw new Error('sender waited indefinitely after peer left'); }),
+      ])).rejects.toThrow('Timed out waiting for receiver completion');
+      expect(h.sender.getProgress().state).toBe('error');
+    } finally {
+      await h.sender.cancel();
+      P2PProtocol.CONTROL_TIMEOUT_MS = oldTimeout;
+    }
+  });
+
   test('a gateway error after creation reaches the transfer caller', async () => {
     const h = await harness({ size: 1 });
     const done = h.sender.start(readerFor(fixture(1)));
