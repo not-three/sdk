@@ -152,6 +152,29 @@ describe('P2PReceiver', () => {
     expect(writes).toEqual([new Uint8Array([1, 2, 3])]);
   });
 
+  test('manual rejection finishes promptly if the peer closes before its abort drains', async () => {
+    const oldTimeout = P2PProtocol.CONTROL_TIMEOUT_MS;
+    P2PProtocol.CONTROL_TIMEOUT_MS = 50;
+    try {
+      const { receiver, script } = await harness();
+      const done = receiver.start(async () => {}, { manualAccept: true });
+      done.catch(() => {});
+      const s = await script;
+      await s.send({ t: 'meta', name: 'a.bin', size: 10, chunkPayloadSize: CPS });
+      await receiver.getMeta();
+      s.channel.peer.autoDrain = false;
+      const rejecting = receiver.reject();
+      setTimeout(() => s.channel.close(), 5);
+      await expect(Promise.race([
+        rejecting,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('reject hung after close')), 20)),
+      ])).resolves.toBeUndefined();
+      await expect(done).rejects.toMatchObject({ code: 'cancelled' });
+    } finally {
+      P2PProtocol.CONTROL_TIMEOUT_MS = oldTimeout;
+    }
+  });
+
   test('resume rounds the offset down to a chunk boundary', async () => {
     const { receiver, script } = await harness();
     const size = Math.floor(CPS * 2.5);

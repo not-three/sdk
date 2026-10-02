@@ -187,19 +187,11 @@ export class P2PReceiver {
 
   private async flushControl(): Promise<void> {
     const channel = this.channel;
-    if (!channel || channel.readyState !== 'open' || channel.bufferedAmount === 0) return;
-    await new Promise<void>((resolve) => {
-      const timer = setTimeout(() => {
-        channel.onbufferedamountlow = null;
-        resolve();
-      }, P2PProtocol.CONTROL_TIMEOUT_MS);
-      channel.bufferedAmountLowThreshold = 0;
-      channel.onbufferedamountlow = () => {
-        clearTimeout(timer);
-        channel.onbufferedamountlow = null;
-        resolve();
-      };
-    });
+    if (!channel) return;
+    const deadline = Date.now() + P2PProtocol.CONTROL_TIMEOUT_MS;
+    while (channel.readyState === 'open' && channel.bufferedAmount > 0 && Date.now() < deadline) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 1));
+    }
   }
 
   private async run(): Promise<void> {
