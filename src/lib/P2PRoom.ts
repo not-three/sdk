@@ -221,7 +221,11 @@ export class P2PRoom {
       if (!frame || frame.byteLength > P2PProtocol.MAX_MESSAGE_SIZE) throw new Error('Invalid P2P message');
       plain = await Crypto.decrypt(frame, this.key, 'gcm');
     }
-    this.onMessage?.(link.id, plain);
+    try {
+      this.onMessage?.(link.id, plain);
+    } catch {
+      // Application message handling must not tear down a healthy channel.
+    }
   }
 
   private dropPeer(id: string): void {

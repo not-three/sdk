@@ -64,6 +64,23 @@ test('send rejects oversized string and binary wire frames', async () => {
   } finally { a.leave(); b.leave(); }
 });
 
+test('an application message handler error does not disconnect its peer', async () => {
+  const h = setup();
+  const { a, b } = await pair(h);
+  try {
+    b.onMessage = () => { throw new Error('application handler failed'); };
+    await a.send(b.peerId, 'first');
+    await tick();
+    expect(a.peers()[0].connected).toBe(true);
+    expect(b.peers()[0].connected).toBe(true);
+    const got = [];
+    b.onMessage = (_, data) => got.push(data);
+    await a.send(b.peerId, 'second');
+    await until(() => got.length === 1);
+    expect(got).toEqual(['second']);
+  } finally { a.leave(); b.leave(); }
+});
+
 test('wrong seed closes only that peer and leaves good peers connected', async () => {
   const h = setup();
   const { a, b, roomId } = await pair(h);
