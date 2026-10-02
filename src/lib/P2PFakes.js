@@ -53,9 +53,11 @@ class FakeDataChannel {
   }
 
   send(data) {
-    if (this.readyState !== OPEN) throw new Error('FakeDataChannel is not open');
+    if (this.readyState !== OPEN)
+      throw new Error('FakeDataChannel is not open');
     this.sent.push(data);
-    this.bufferedAmount += typeof data === 'string' ? data.length : data.byteLength;
+    this.bufferedAmount +=
+      typeof data === 'string' ? data.length : data.byteLength;
 
     let payload = data;
     if (typeof payload !== 'string' && this._corruptNext) {
@@ -153,7 +155,9 @@ class FakePeerConnection {
     queueMicrotask(() => {
       if (this.closed) return;
       if (this.onicecandidate) {
-        this.onicecandidate({ candidate: { candidate: `fake-candidate-${this.role}` } });
+        this.onicecandidate({
+          candidate: { candidate: `fake-candidate-${this.role}` },
+        });
       }
     });
     this.hub.maybeEstablish();
@@ -243,7 +247,8 @@ function loopbackWebSocketClass(server) {
     }
 
     send(raw) {
-      if (this.readyState !== 1) throw new Error('LoopbackWebSocket is not open');
+      if (this.readyState !== 1)
+        throw new Error('LoopbackWebSocket is not open');
       server.handle(this, JSON.parse(raw));
     }
 
@@ -292,13 +297,19 @@ class LoopbackSignalingServer {
         this.sessions.set(sessionId, session);
         socket.session = session;
         socket.role = 'sender';
-        socket.deliver({ type: 'created', sessionId, iceServers: this.iceServers });
+        socket.deliver({
+          type: 'created',
+          sessionId,
+          iceServers: this.iceServers,
+        });
         break;
       }
       case 'join': {
         const session = this.sessions.get(msg.sessionId);
-        if (!session) return socket.deliver({ type: 'error', code: 'not-found' });
-        if (session.receiver) return socket.deliver({ type: 'error', code: 'session-full' });
+        if (!session)
+          return socket.deliver({ type: 'error', code: 'not-found' });
+        if (session.receiver)
+          return socket.deliver({ type: 'error', code: 'session-full' });
         session.receiver = socket;
         socket.session = session;
         socket.role = 'receiver';
@@ -350,19 +361,33 @@ class RoomLoopbackSignalingServer extends LoopbackSignalingServer {
         this.sessions.set(sessionId, session);
         socket.session = session;
         socket.peerId = peerId;
-        socket.deliver({ type: 'created', sessionId, iceServers: this.iceServers, kind: 'room', peerId });
+        socket.deliver({
+          type: 'created',
+          sessionId,
+          iceServers: this.iceServers,
+          kind: 'room',
+          peerId,
+        });
         break;
       }
       case 'join': {
         const session = this.sessions.get(msg.sessionId);
-        if (!session) return socket.deliver({ type: 'error', code: 'not-found' });
+        if (!session)
+          return socket.deliver({ type: 'error', code: 'not-found' });
         if (!session.peers) return super.handle(socket, msg);
         const peerId = `peer-${++this.counter}`;
         const peers = [...session.peers.keys()];
         session.peers.set(peerId, socket);
         socket.session = session;
         socket.peerId = peerId;
-        socket.deliver({ type: 'joined', sessionId: session.id, iceServers: this.iceServers, kind: 'room', peerId, peers });
+        socket.deliver({
+          type: 'joined',
+          sessionId: session.id,
+          iceServers: this.iceServers,
+          kind: 'room',
+          peerId,
+          peers,
+        });
         for (const other of session.peers.values()) {
           if (other !== socket) other.deliver({ type: 'peer-joined', peerId });
         }
@@ -370,10 +395,18 @@ class RoomLoopbackSignalingServer extends LoopbackSignalingServer {
       }
       case 'signal': {
         if (!socket.session?.peers) return super.handle(socket, msg);
-        socket.session.peers.get(msg.to)?.deliver({ type: 'signal', from: socket.peerId, payload: msg.payload });
+        socket.session.peers
+          .get(msg.to)
+          ?.deliver({
+            type: 'signal',
+            from: socket.peerId,
+            payload: msg.payload,
+          });
         break;
       }
-      case 'leave': this.disconnect(socket); break;
+      case 'leave':
+        this.disconnect(socket);
+        break;
     }
   }
 
@@ -382,7 +415,8 @@ class RoomLoopbackSignalingServer extends LoopbackSignalingServer {
     if (!session?.peers) return super.disconnect(socket);
     session.peers.delete(socket.peerId);
     socket.session = null;
-    for (const other of session.peers.values()) other.deliver({ type: 'peer-left', peerId: socket.peerId });
+    for (const other of session.peers.values())
+      other.deliver({ type: 'peer-left', peerId: socket.peerId });
     if (!session.peers.size) this.sessions.delete(session.id);
   }
 }
@@ -398,7 +432,10 @@ function createFakeRtcMesh() {
       this.connectionState = 'new';
       this.localDescription = null;
       this.remoteDescription = null;
-      this.onicecandidate = this.ondatachannel = this.onconnectionstatechange = null;
+      this.onicecandidate =
+        this.ondatachannel =
+        this.onconnectionstatechange =
+          null;
       this.localChannel = null;
       this.remoteChannel = null;
       this.peer = null;
@@ -406,7 +443,8 @@ function createFakeRtcMesh() {
       connections.push(this);
     }
     createDataChannel(label) {
-      [this.localChannel, this.remoteChannel] = FakeDataChannel.createPair(label);
+      [this.localChannel, this.remoteChannel] =
+        FakeDataChannel.createPair(label);
       return this.localChannel;
     }
     async createOffer() {
@@ -414,7 +452,9 @@ function createFakeRtcMesh() {
       offers.set(this.offerId, this);
       return { type: 'offer', sdp: String(this.offerId) };
     }
-    async createAnswer() { return { type: 'answer', sdp: String(this.offerId) }; }
+    async createAnswer() {
+      return { type: 'answer', sdp: String(this.offerId) };
+    }
     async setLocalDescription(description) {
       this.localDescription = description;
       this.maybeEstablish();
@@ -431,8 +471,15 @@ function createFakeRtcMesh() {
     async addIceCandidate() {}
     maybeEstablish() {
       const peer = this.peer;
-      if (!peer || !this.localDescription || !this.remoteDescription ||
-          !peer.localDescription || !peer.remoteDescription || this.connectionState === 'connected') return;
+      if (
+        !peer ||
+        !this.localDescription ||
+        !this.remoteDescription ||
+        !peer.localDescription ||
+        !peer.remoteDescription ||
+        this.connectionState === 'connected'
+      )
+        return;
       const offerer = this.localChannel ? this : peer;
       const answerer = this.localChannel ? peer : this;
       answerer.remoteChannel = offerer.remoteChannel;
@@ -455,5 +502,11 @@ function createFakeRtcMesh() {
   return { rtc: () => new MeshPeerConnection(), connections };
 }
 
-module.exports = { FakeDataChannel, FakePeerConnection, createFakeRtcPair, LoopbackSignalingServer,
-  RoomLoopbackSignalingServer, createFakeRtcMesh };
+module.exports = {
+  FakeDataChannel,
+  FakePeerConnection,
+  createFakeRtcPair,
+  LoopbackSignalingServer,
+  RoomLoopbackSignalingServer,
+  createFakeRtcMesh,
+};

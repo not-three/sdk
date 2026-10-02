@@ -1,22 +1,26 @@
-import { ShareOptions } from "../types/sdk/ShareOptions";
-import { FragmentData } from "./FragmentData";
+import { ShareOptions } from '../types/sdk/ShareOptions';
+import { FragmentData } from './FragmentData';
 
 /**
  * @category Lib
  */
 export class ShareGenerator {
-  readonly SCRIPT_URL = 'https://raw.githubusercontent.com/not-three/main/refs/heads/main/scripts/';
+  readonly SCRIPT_URL =
+    'https://raw.githubusercontent.com/not-three/main/refs/heads/main/scripts/';
 
   constructor(private readonly opts: ShareOptions) {}
 
   /**
    * Generate a link to share a note in the ui.
    */
-  noteUi(noteId: string, fragment: FragmentData|string): string {
-    fragment = typeof fragment === 'string' ? new FragmentData({
-      seed: fragment,
-      server: this.opts.storeServer ? this.opts.apiUrl : undefined,
-    }) : fragment;
+  noteUi(noteId: string, fragment: FragmentData | string): string {
+    fragment =
+      typeof fragment === 'string'
+        ? new FragmentData({
+            seed: fragment,
+            server: this.opts.storeServer ? this.opts.apiUrl : undefined,
+          })
+        : fragment;
     return `${this.opts.uiUrl}q/${noteId}#${fragment.toString()}`;
   }
 

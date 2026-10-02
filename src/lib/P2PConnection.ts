@@ -50,7 +50,9 @@ interface SignalPayload {
  * @returns The peer connection and its open data channel.
  * @category Lib
  */
-export function connectPeer(opts: P2PConnectOptions): Promise<P2PConnectResult> {
+export function connectPeer(
+  opts: P2PConnectOptions,
+): Promise<P2PConnectResult> {
   const timeoutMs = opts.timeoutMs ?? P2PProtocol.CONNECT_TIMEOUT_MS;
   const { signaling, role } = opts;
   const pc = opts.rtc({ iceServers: opts.iceServers });
@@ -85,7 +87,11 @@ export function connectPeer(opts: P2PConnectOptions): Promise<P2PConnectResult> 
     const ready = (channel: RTCDataChannel): void => {
       channel.binaryType = 'arraybuffer';
       const done = () =>
-        finish(null, { pc, channel, maxMessageSize: pc.sctp?.maxMessageSize ?? null });
+        finish(null, {
+          pc,
+          channel,
+          maxMessageSize: pc.sctp?.maxMessageSize ?? null,
+        });
       if (channel.readyState === 'open') done();
       else
         channel.onopen = () => {
@@ -98,7 +104,8 @@ export function connectPeer(opts: P2PConnectOptions): Promise<P2PConnectResult> 
       if (!remoteDescriptionReady || drainingCandidates) return;
       drainingCandidates = true;
       try {
-        while (pendingCandidates.length) await pc.addIceCandidate(pendingCandidates.shift()!);
+        while (pendingCandidates.length)
+          await pc.addIceCandidate(pendingCandidates.shift()!);
       } finally {
         drainingCandidates = false;
       }

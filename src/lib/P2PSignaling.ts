@@ -119,16 +119,22 @@ export class P2PSignaling {
     }
     switch (msg.type) {
       case 'created':
-        this.pending?.resolve({ sessionId: msg.sessionId ?? '', iceServers: msg.iceServers ?? [],
+        this.pending?.resolve({
+          sessionId: msg.sessionId ?? '',
+          iceServers: msg.iceServers ?? [],
           ...(msg.kind !== undefined && { kind: msg.kind }),
-          ...(msg.peerId !== undefined && { peerId: msg.peerId }) });
+          ...(msg.peerId !== undefined && { peerId: msg.peerId }),
+        });
         break;
       case 'joined': {
         const sessionId = this.pending?.sessionId ?? msg.sessionId ?? '';
-        this.pending?.resolve({ sessionId, iceServers: msg.iceServers ?? [],
+        this.pending?.resolve({
+          sessionId,
+          iceServers: msg.iceServers ?? [],
           ...(msg.kind !== undefined && { kind: msg.kind }),
           ...(msg.peerId !== undefined && { peerId: msg.peerId }),
-          ...(msg.peers !== undefined && { peers: msg.peers }) });
+          ...(msg.peers !== undefined && { peers: msg.peers }),
+        });
         break;
       }
       case 'error': {
@@ -167,7 +173,10 @@ export class P2PSignaling {
   }
 
   private request(frame: object, sessionId?: string): Promise<P2PSessionGrant> {
-    if (this.pending) return Promise.reject(new Error('Another signaling request is in flight'));
+    if (this.pending)
+      return Promise.reject(
+        new Error('Another signaling request is in flight'),
+      );
     return new Promise<P2PSessionGrant>((resolve, reject) => {
       this.pending = {
         resolve: (value) => {
@@ -194,7 +203,9 @@ export class P2PSignaling {
    * @throws Error If the socket is not open.
    */
   sendSignal(payload: unknown, to?: string): void {
-    this.send(to ? { type: 'signal', to, payload } : { type: 'signal', payload });
+    this.send(
+      to ? { type: 'signal', to, payload } : { type: 'signal', payload },
+    );
   }
 
   /**
@@ -224,7 +235,8 @@ export class P2PSignaling {
   }
 
   private send(frame: object): void {
-    if (!this.ws || this.ws.readyState !== 1) throw new Error('Signaling socket not open');
+    if (!this.ws || this.ws.readyState !== 1)
+      throw new Error('Signaling socket not open');
     this.ws.send(JSON.stringify(frame));
   }
 }

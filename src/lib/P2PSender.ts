@@ -1,6 +1,11 @@
 import { P2PClient } from '../clients/P2P';
 import { GetBytesFn } from '../types/sdk/GetBytesFn';
-import { P2PControlMessage, P2PProgress, P2PProgressHook, P2PState } from '../types/sdk/P2P';
+import {
+  P2PControlMessage,
+  P2PProgress,
+  P2PProgressHook,
+  P2PState,
+} from '../types/sdk/P2P';
 import { Crypto } from './Crypto';
 import { P2PProtocol } from './P2PProtocol';
 import { P2PSignaling } from './P2PSignaling';
@@ -48,7 +53,11 @@ interface PeerSession {
 export class P2PSender {
   private readonly seed: string;
   private progressHook: P2PProgressHook | null = null;
-  private progress: P2PProgress = { state: 'idle', bytesTransferred: 0, totalBytes: 0 };
+  private progress: P2PProgress = {
+    state: 'idle',
+    bytesTransferred: 0,
+    totalBytes: 0,
+  };
 
   private readonly startPromise: Promise<void>;
   private resolveStart!: () => void;
@@ -158,7 +167,11 @@ export class P2PSender {
     const channel = this.conn?.channel;
     if (!channel) return;
     const deadline = Date.now() + P2PProtocol.CONTROL_TIMEOUT_MS;
-    while (channel.readyState === 'open' && channel.bufferedAmount > 0 && Date.now() < deadline) {
+    while (
+      channel.readyState === 'open' &&
+      channel.bufferedAmount > 0 &&
+      Date.now() < deadline
+    ) {
       await new Promise<void>((resolve) => setTimeout(resolve, 1));
     }
   }
@@ -167,9 +180,13 @@ export class P2PSender {
     this.setState('connecting');
     this.key = await Crypto.generateKey(this.seed, 'gcm');
 
-    const signaling = new P2PSignaling(this.p2p.gatewayUrl(), this.p2p.webSocketCtor());
+    const signaling = new P2PSignaling(
+      this.p2p.gatewayUrl(),
+      this.p2p.webSocketCtor(),
+    );
     this.signaling = signaling;
-    signaling.onClose = (error) => this.fail(error ?? new P2PPeerDisconnectedError());
+    signaling.onClose = (error) =>
+      this.fail(error ?? new P2PPeerDisconnectedError());
     signaling.onPeerJoined = () => {
       this.peerGeneration++;
       this.peerPresent = true;
@@ -209,7 +226,8 @@ export class P2PSender {
       }
       if (result === 'complete') return;
       // The peer we just served is gone; wait for a fresh one to join.
-      if (this.servedGeneration === this.peerGeneration) this.peerPresent = false;
+      if (this.servedGeneration === this.peerGeneration)
+        this.peerPresent = false;
     }
   }
 
@@ -230,7 +248,10 @@ export class P2PSender {
     });
   }
 
-  private async serve(conn: P2PConnectResult, getBytes: GetBytesFn): Promise<ServeResult> {
+  private async serve(
+    conn: P2PConnectResult,
+    getBytes: GetBytesFn,
+  ): Promise<ServeResult> {
     const { channel } = conn;
     const chunkPayloadSize = P2PProtocol.chunkPayloadSize(conn.maxMessageSize);
     const s: PeerSession = {
@@ -302,7 +323,8 @@ export class P2PSender {
       await this.sendControl({ t: 'done', chunkCount: s.chunkCount });
       if (!s.completed && !this.completionTimer) {
         this.completionTimer = setTimeout(
-          () => this.fail(new Error('Timed out waiting for receiver completion')),
+          () =>
+            this.fail(new Error('Timed out waiting for receiver completion')),
           P2PProtocol.CONTROL_TIMEOUT_MS,
         );
       }
@@ -371,14 +393,17 @@ export class P2PSender {
         break;
       case 'abort':
         s.error =
-          msg.reason === 'cancelled' ? new P2PCancelledError() : new P2PPeerDisconnectedError();
+          msg.reason === 'cancelled'
+            ? new P2PCancelledError()
+            : new P2PPeerDisconnectedError();
         this.wake(s);
         break;
     }
   }
 
   private async waitForAccept(s: PeerSession): Promise<void> {
-    const settled = () => s.accepted || s.authFailed || s.dead || s.acceptTimedOut || !!s.error;
+    const settled = () =>
+      s.accepted || s.authFailed || s.dead || s.acceptTimedOut || !!s.error;
     if (settled()) return;
     const timer = setTimeout(() => {
       s.acceptTimedOut = true;
@@ -392,7 +417,8 @@ export class P2PSender {
   }
 
   private waitDrain(channel: RTCDataChannel, s: PeerSession): Promise<void> {
-    if (channel.bufferedAmount <= P2PProtocol.BUFFER_HIGH_WATER) return Promise.resolve();
+    if (channel.bufferedAmount <= P2PProtocol.BUFFER_HIGH_WATER)
+      return Promise.resolve();
     channel.bufferedAmountLowThreshold = P2PProtocol.BUFFER_LOW_WATER;
     return new Promise<void>((resolve) => {
       s.drainResolve = () => {
@@ -431,7 +457,8 @@ export class P2PSender {
 
   private async sendControl(msg: P2PControlMessage): Promise<void> {
     const channel = this.conn?.channel;
-    if (!channel || channel.readyState !== 'open') throw new P2PPeerDisconnectedError();
+    if (!channel || channel.readyState !== 'open')
+      throw new P2PPeerDisconnectedError();
     channel.send(await P2PProtocol.encryptControl(msg, this.key!));
   }
 

@@ -83,7 +83,10 @@ export class P2PConnectTimeoutError extends P2PError {
  */
 export class P2PTransferCorruptedError extends P2PError {
   constructor() {
-    super('Transfer corrupted: chunk retry limit exceeded', 'transfer-corrupted');
+    super(
+      'Transfer corrupted: chunk retry limit exceeded',
+      'transfer-corrupted',
+    );
   }
 }
 

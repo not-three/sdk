@@ -68,7 +68,11 @@ describe('ShareGenerator', () => {
 
   describe('p2pUi', () => {
     test('p2pUi builds an /f/ link whose fragment has the p2p flag and gcm mode', () => {
-      const gen = new ShareGenerator({ apiUrl: 'https://api.x/', uiUrl: 'https://ui.x/', storeServer: false });
+      const gen = new ShareGenerator({
+        apiUrl: 'https://api.x/',
+        uiUrl: 'https://ui.x/',
+        storeServer: false,
+      });
       const link = gen.p2pUi('sess1', 'seedvalue');
       expect(link.startsWith('https://ui.x/f/sess1#')).toBe(true);
       const frag = FragmentData.fromURL(link);
@@ -79,8 +83,14 @@ describe('ShareGenerator', () => {
     });
 
     test('p2pUi embeds the api server when storeServer is set', () => {
-      const gen = new ShareGenerator({ apiUrl: 'https://api.x/', uiUrl: 'https://ui.x/', storeServer: true });
-      expect(FragmentData.fromURL(gen.p2pUi('s', 'k')).server).toBe('https://api.x/');
+      const gen = new ShareGenerator({
+        apiUrl: 'https://api.x/',
+        uiUrl: 'https://ui.x/',
+        storeServer: true,
+      });
+      expect(FragmentData.fromURL(gen.p2pUi('s', 'k')).server).toBe(
+        'https://api.x/',
+      );
     });
   });
 
@@ -88,7 +98,9 @@ describe('ShareGenerator', () => {
     test('percent-encodes the seed', () => {
       const seed = 'ab+cd/ef==';
       const url = gen.noteServerSideDecrypt('note123', seed);
-      expect(url).toBe('https://api.example.com/note/note123/decrypt?key=ab%2Bcd%2Fef%3D%3D');
+      expect(url).toBe(
+        'https://api.example.com/note/note123/decrypt?key=ab%2Bcd%2Fef%3D%3D',
+      );
       // The parsed key must match the original seed exactly.
       expect(new URL(url).searchParams.get('key')).toBe(seed);
     });

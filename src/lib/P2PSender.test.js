@@ -1,5 +1,10 @@
 const {
-  Not3Client, P2PSender, P2PProtocol, P2PSignaling, Crypto, connectPeer,
+  Not3Client,
+  P2PSender,
+  P2PProtocol,
+  P2PSignaling,
+  Crypto,
+  connectPeer,
   P2PTransferCorruptedError,
 } = require('../../dist/index.cjs');
 const { LoopbackSignalingServer, createFakeRtcPair } = require('./P2PFakes');
@@ -16,7 +21,8 @@ function fixture(size) {
 }
 
 function chunkOf(data, index) {
-  return data.slice(index * CPS, Math.min((index + 1) * CPS, data.length)).buffer;
+  return data.slice(index * CPS, Math.min((index + 1) * CPS, data.length))
+    .buffer;
 }
 
 /**
@@ -57,7 +63,10 @@ class ReceiverScript {
               this.seenControls.push(value);
               return { kind: 'control', value };
             })
-          : P2PProtocol.decryptChunk(ev.data, key).then((value) => ({ kind: 'chunk', value }));
+          : P2PProtocol.decryptChunk(ev.data, key).then((value) => ({
+              kind: 'chunk',
+              value,
+            }));
       if (typeof ev.data !== 'string') this.binaryCount++;
       if (this.waiters.length) this.waiters.shift()(frame);
       else this.frames.push(frame);
@@ -72,13 +81,15 @@ class ReceiverScript {
 
   async nextControl() {
     const frame = await this.next();
-    if (frame.kind !== 'control') throw new Error(`expected a control frame, got ${frame.kind}`);
+    if (frame.kind !== 'control')
+      throw new Error(`expected a control frame, got ${frame.kind}`);
     return frame.value;
   }
 
   async nextChunk() {
     const frame = await this.next();
-    if (frame.kind !== 'chunk') throw new Error(`expected a chunk frame, got ${frame.kind}`);
+    if (frame.kind !== 'chunk')
+      throw new Error(`expected a chunk frame, got ${frame.kind}`);
     return frame.value;
   }
 
@@ -92,17 +103,33 @@ class ReceiverScript {
   }
 }
 
-async function harness({ name = 'file.bin', size, seed, maxMessageSize = MAX_MESSAGE_SIZE } = {}) {
+async function harness({
+  name = 'file.bin',
+  size,
+  seed,
+  maxMessageSize = MAX_MESSAGE_SIZE,
+} = {}) {
   const server = new LoopbackSignalingServer();
   const WS = server.connectFactory();
   const broker = rtcBroker(maxMessageSize);
-  const client = new Not3Client({ baseUrl: 'https://api.x/', webSocket: WS, rtc: broker.senderRtc });
-  const sender = new P2PSender(client.p2p(), name, size, seed ? { seed } : undefined);
+  const client = new Not3Client({
+    baseUrl: 'https://api.x/',
+    webSocket: WS,
+    rtc: broker.senderRtc,
+  });
+  const sender = new P2PSender(
+    client.p2p(),
+    name,
+    size,
+    seed ? { seed } : undefined,
+  );
   const key = await Crypto.generateKey(sender.getSeed(), 'gcm');
 
   const states = [];
   let waitingResolve;
-  const waitingPeer = new Promise((r) => { waitingResolve = r; });
+  const waitingPeer = new Promise((r) => {
+    waitingResolve = r;
+  });
   sender.onProgress((p) => {
     states.push(p.state);
     if (p.state === 'waiting-peer') waitingResolve();
@@ -118,7 +145,10 @@ async function joinAs(h) {
   const pair = h.broker.createPair();
   await signaling.join(h.sender.getSessionId());
   const { channel } = await connectPeer({
-    role: 'receiver', signaling, rtc: pair.receiverFactory, iceServers: [],
+    role: 'receiver',
+    signaling,
+    rtc: pair.receiverFactory,
+    iceServers: [],
   });
   return new ReceiverScript(channel, h.key, signaling, pair);
 }
@@ -140,10 +170,14 @@ describe('P2PSender', () => {
       await s.nextChunk();
       await s.nextChunk();
       expect(await s.nextControl()).toEqual({ t: 'done', chunkCount: 2 });
-      await expect(Promise.race([
-        done,
-        tick(200).then(() => { throw new Error('sender remained pending without completion'); }),
-      ])).rejects.toThrow('Timed out waiting for receiver completion');
+      await expect(
+        Promise.race([
+          done,
+          tick(200).then(() => {
+            throw new Error('sender remained pending without completion');
+          }),
+        ]),
+      ).rejects.toThrow('Timed out waiting for receiver completion');
       expect(h.sender.getProgress().state).toBe('error');
     } finally {
       await h.sender.cancel();
@@ -168,11 +202,17 @@ describe('P2PSender', () => {
       s.channel.close();
       s.signaling.leave();
       await tick(5);
-      expect(h.states.filter((state) => state === 'waiting-peer')).toHaveLength(2);
-      await expect(Promise.race([
-        done,
-        tick(200).then(() => { throw new Error('sender waited indefinitely after peer left'); }),
-      ])).rejects.toThrow('Timed out waiting for receiver completion');
+      expect(h.states.filter((state) => state === 'waiting-peer')).toHaveLength(
+        2,
+      );
+      await expect(
+        Promise.race([
+          done,
+          tick(200).then(() => {
+            throw new Error('sender waited indefinitely after peer left');
+          }),
+        ]),
+      ).rejects.toThrow('Timed out waiting for receiver completion');
       expect(h.sender.getProgress().state).toBe('error');
     } finally {
       await h.sender.cancel();
@@ -186,7 +226,8 @@ describe('P2PSender', () => {
     await h.waitingPeer;
 
     h.server.sessions.get(h.sender.getSessionId()).sender.deliver({
-      type: 'error', code: 'rate-limited',
+      type: 'error',
+      code: 'rate-limited',
     });
 
     await expect(done).rejects.toMatchObject({ code: 'rate-limited' });
@@ -200,24 +241,35 @@ describe('P2PSender', () => {
 
     const s = await joinAs(h);
     expect(await s.nextControl()).toEqual({
-      t: 'meta', name: 'file.bin', size, chunkPayloadSize: CPS,
+      t: 'meta',
+      name: 'file.bin',
+      size,
+      chunkPayloadSize: CPS,
     });
     await s.send({ t: 'accept', offset: 0 });
 
     for (let i = 0; i < 3; i++) {
       const chunk = await s.nextChunk();
       expect(chunk.index).toBe(i);
-      expect(new Uint8Array(chunk.payload)).toEqual(new Uint8Array(chunkOf(data, i)));
+      expect(new Uint8Array(chunk.payload)).toEqual(
+        new Uint8Array(chunkOf(data, i)),
+      );
     }
     expect(await s.nextControl()).toEqual({ t: 'done', chunkCount: 3 });
     await s.send({ t: 'complete' });
     await done;
 
     expect(h.sender.getProgress()).toEqual({
-      state: 'done', bytesTransferred: size, totalBytes: size,
+      state: 'done',
+      bytesTransferred: size,
+      totalBytes: size,
     });
     expect(h.states.filter((v, i, a) => a[i - 1] !== v)).toEqual([
-      'connecting', 'waiting-peer', 'handshake', 'transfer', 'done',
+      'connecting',
+      'waiting-peer',
+      'handshake',
+      'transfer',
+      'done',
     ]);
   });
 
@@ -233,7 +285,9 @@ describe('P2PSender', () => {
 
     const chunk = await s.nextChunk();
     expect(chunk.index).toBe(2);
-    expect(new Uint8Array(chunk.payload)).toEqual(new Uint8Array(chunkOf(data, 2)));
+    expect(new Uint8Array(chunk.payload)).toEqual(
+      new Uint8Array(chunkOf(data, 2)),
+    );
     expect(await s.nextControl()).toEqual({ t: 'done', chunkCount: 3 });
     await s.send({ t: 'complete' });
     await done;
@@ -278,7 +332,8 @@ describe('P2PSender', () => {
     await s.send({ t: 'accept', offset: 0 });
     await s.nextChunk();
 
-    for (let i = 0; i <= P2PProtocol.NACK_RETRY_LIMIT; i++) await s.send({ t: 'nack', index: 0 });
+    for (let i = 0; i <= P2PProtocol.NACK_RETRY_LIMIT; i++)
+      await s.send({ t: 'nack', index: 0 });
 
     await expect(done).rejects.toBeInstanceOf(P2PTransferCorruptedError);
     await tick();
@@ -338,7 +393,10 @@ describe('P2PSender', () => {
 
     const s = await joinAs(h);
     expect(await s.nextControl()).toEqual({
-      t: 'meta', name: 'file.bin', size: 0, chunkPayloadSize: CPS,
+      t: 'meta',
+      name: 'file.bin',
+      size: 0,
+      chunkPayloadSize: CPS,
     });
     await s.send({ t: 'accept', offset: 0 });
     expect(await s.nextControl()).toEqual({ t: 'done', chunkCount: 0 });
@@ -354,7 +412,9 @@ describe('P2PSender', () => {
     const data = fixture(10);
     const first = h.sender.start(readerFor(data));
     first.catch(() => {});
-    await expect(h.sender.start(readerFor(data))).rejects.toThrow('Transfer already started');
+    await expect(h.sender.start(readerFor(data))).rejects.toThrow(
+      'Transfer already started',
+    );
     await h.waitingPeer;
     expect(typeof h.sender.getSessionId()).toBe('string');
     await h.sender.cancel();

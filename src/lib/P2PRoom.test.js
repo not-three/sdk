@@ -1,4 +1,8 @@
-const { P2PRoom, Crypto, P2PSessionNotFoundError } = require('../../dist/index.cjs');
+const {
+  P2PRoom,
+  Crypto,
+  P2PSessionNotFoundError,
+} = require('../../dist/index.cjs');
 
 class Socket {
   static instances = [];
@@ -6,18 +10,35 @@ class Socket {
     this.readyState = 0;
     this.sent = [];
     Socket.instances.push(this);
-    queueMicrotask(() => { this.readyState = 1; this.onopen?.({}); });
+    queueMicrotask(() => {
+      this.readyState = 1;
+      this.onopen?.({});
+    });
   }
-  send(raw) { this.sent.push(JSON.parse(raw)); }
-  close() { this.readyState = 3; this.onclose?.({}); }
-  receive(frame) { this.onmessage?.({ data: JSON.stringify(frame) }); }
+  send(raw) {
+    this.sent.push(JSON.parse(raw));
+  }
+  close() {
+    this.readyState = 3;
+    this.onclose?.({});
+  }
+  receive(frame) {
+    this.onmessage?.({ data: JSON.stringify(frame) });
+  }
 }
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
-const client = { gatewayUrl: () => 'ws://fake/p2p', webSocketCtor: () => Socket,
-  rtcFactory: () => () => { throw new Error('RTC should not start'); } };
+const client = {
+  gatewayUrl: () => 'ws://fake/p2p',
+  webSocketCtor: () => Socket,
+  rtcFactory: () => () => {
+    throw new Error('RTC should not start');
+  },
+};
 
-beforeEach(() => { Socket.instances = []; });
+beforeEach(() => {
+  Socket.instances = [];
+});
 
 test('create changes state and returns the room and local peer ids', async () => {
   const room = new P2PRoom(client, { seed: Crypto.generateSeed() });
@@ -26,7 +47,13 @@ test('create changes state and returns the room and local peer ids', async () =>
   const grant = room.create();
   await tick();
   expect(Socket.instances[0].sent).toEqual([{ type: 'create', kind: 'room' }]);
-  Socket.instances[0].receive({ type: 'created', kind: 'room', sessionId: 'r1', peerId: 'a', iceServers: [] });
+  Socket.instances[0].receive({
+    type: 'created',
+    kind: 'room',
+    sessionId: 'r1',
+    peerId: 'a',
+    iceServers: [],
+  });
   await expect(grant).resolves.toEqual({ roomId: 'r1', peerId: 'a' });
   expect(room.state).toBe('joined');
   expect(room.peerId).toBe('a');
@@ -42,7 +69,14 @@ test('join resolves on signaling grant and exposes existing peers before channel
   const grant = room.join('r1');
   await tick();
   expect(Socket.instances[0].sent).toEqual([{ type: 'join', sessionId: 'r1' }]);
-  Socket.instances[0].receive({ type: 'joined', kind: 'room', sessionId: 'r1', peerId: 'b', peers: ['a'], iceServers: [] });
+  Socket.instances[0].receive({
+    type: 'joined',
+    kind: 'room',
+    sessionId: 'r1',
+    peerId: 'b',
+    peers: ['a'],
+    iceServers: [],
+  });
   await expect(grant).resolves.toEqual({ peerId: 'b', peers: ['a'] });
   expect(room.peers()).toEqual([{ id: 'a', connected: false }]);
   room.leave();
@@ -62,24 +96,37 @@ test('gateway errors reject join with the mapped error and close room once', asy
   expect(closed).toHaveLength(1);
 });
 
-test.each(['disabled', 'not-found', 'session-full', 'rate-limited', 'invalid-message'])(
-  'room join preserves gateway error code %s', async (code) => {
-    const room = new P2PRoom(client, { seed: Crypto.generateSeed() });
-    const grant = room.join('r1');
-    await tick();
-    Socket.instances[0].receive({ type: 'error', code });
-    await expect(grant).rejects.toMatchObject({ code });
-  }
-);
+test.each([
+  'disabled',
+  'not-found',
+  'session-full',
+  'rate-limited',
+  'invalid-message',
+])('room join preserves gateway error code %s', async (code) => {
+  const room = new P2PRoom(client, { seed: Crypto.generateSeed() });
+  const grant = room.join('r1');
+  await tick();
+  Socket.instances[0].receive({ type: 'error', code });
+  await expect(grant).rejects.toMatchObject({ code });
+});
 
 test('signaling loss without a live channel calls onClose only', async () => {
   const lost = jest.fn();
-  const room = new P2PRoom(client, { seed: Crypto.generateSeed(), onSignalingLost: lost });
+  const room = new P2PRoom(client, {
+    seed: Crypto.generateSeed(),
+    onSignalingLost: lost,
+  });
   const closed = jest.fn();
   room.onClose = closed;
   const grant = room.create();
   await tick();
-  Socket.instances[0].receive({ type: 'created', kind: 'room', sessionId: 'r1', peerId: 'a', iceServers: [] });
+  Socket.instances[0].receive({
+    type: 'created',
+    kind: 'room',
+    sessionId: 'r1',
+    peerId: 'a',
+    iceServers: [],
+  });
   await grant;
   Socket.instances[0].close();
   expect(lost).not.toHaveBeenCalled();

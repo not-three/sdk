@@ -100,7 +100,9 @@ describe('FragmentData', () => {
 
     test('throws when the seed is missing', () => {
       const fragment = btoa(new URLSearchParams({ d: '1' }).toString());
-      expect(() => FragmentData.fromURL(`https://ui/#${fragment}`)).toThrow('Seed is required');
+      expect(() => FragmentData.fromURL(`https://ui/#${fragment}`)).toThrow(
+        'Seed is required',
+      );
     });
   });
 
