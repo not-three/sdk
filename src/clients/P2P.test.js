@@ -1,4 +1,4 @@
-const { Not3Client } = require('../../dist/index.cjs');
+const { Not3Client, P2PRoom, Crypto } = require('../../dist/index.cjs');
 
 function clientWith(baseUrl, extra = {}) {
   return new Not3Client({ baseUrl, ...extra });
@@ -17,6 +17,23 @@ describe('P2PClient', () => {
     await expect(p2p.isEnabled()).resolves.toBe(true);
     p2p.api = { get: jest.fn(async () => ({ data: { version: 'IN-DEV' } })) };
     await expect(p2p.isEnabled()).resolves.toBe(false);
+  });
+
+  test('roomsEnabled reads the optional p2pRooms info flag', async () => {
+    const p2p = clientWith('https://api.x/').p2p();
+    p2p.api = { get: jest.fn(async () => ({ data: { p2pRooms: true } })) };
+    await expect(p2p.roomsEnabled()).resolves.toBe(true);
+    p2p.api = { get: jest.fn(async () => ({ data: {} })) };
+    await expect(p2p.roomsEnabled()).resolves.toBe(false);
+    p2p.api = { get: jest.fn(async () => ({ data: { p2pRooms: 'true' } })) };
+    await expect(p2p.roomsEnabled()).resolves.toBe(false);
+  });
+
+  test('room constructs the exported room primitive', () => {
+    const p2p = clientWith('https://api.x/').p2p();
+    const room = p2p.room({ seed: Crypto.generateSeed() });
+    expect(room).toBeInstanceOf(P2PRoom);
+    expect(room.state).toBe('idle');
   });
 
   test('webSocketCtor and rtcFactory prefer injected options', () => {

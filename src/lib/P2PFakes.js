@@ -338,4 +338,122 @@ class LoopbackSignalingServer {
   }
 }
 
-module.exports = { FakeDataChannel, FakePeerConnection, createFakeRtcPair, LoopbackSignalingServer };
+/** In-memory room gateway with addressed signaling and membership ids. */
+class RoomLoopbackSignalingServer extends LoopbackSignalingServer {
+  handle(socket, msg) {
+    switch (msg.type) {
+      case 'create': {
+        if (msg.kind !== 'room') return super.handle(socket, msg);
+        const sessionId = `room-${++this.counter}`;
+        const peerId = `peer-${this.counter}`;
+        const session = { id: sessionId, peers: new Map([[peerId, socket]]) };
+        this.sessions.set(sessionId, session);
+        socket.session = session;
+        socket.peerId = peerId;
+        socket.deliver({ type: 'created', sessionId, iceServers: this.iceServers, kind: 'room', peerId });
+        break;
+      }
+      case 'join': {
+        const session = this.sessions.get(msg.sessionId);
+        if (!session) return socket.deliver({ type: 'error', code: 'not-found' });
+        if (!session.peers) return super.handle(socket, msg);
+        const peerId = `peer-${++this.counter}`;
+        const peers = [...session.peers.keys()];
+        session.peers.set(peerId, socket);
+        socket.session = session;
+        socket.peerId = peerId;
+        socket.deliver({ type: 'joined', sessionId: session.id, iceServers: this.iceServers, kind: 'room', peerId, peers });
+        for (const other of session.peers.values()) {
+          if (other !== socket) other.deliver({ type: 'peer-joined', peerId });
+        }
+        break;
+      }
+      case 'signal': {
+        if (!socket.session?.peers) return super.handle(socket, msg);
+        socket.session.peers.get(msg.to)?.deliver({ type: 'signal', from: socket.peerId, payload: msg.payload });
+        break;
+      }
+      case 'leave': this.disconnect(socket); break;
+    }
+  }
+
+  disconnect(socket) {
+    const session = socket.session;
+    if (!session?.peers) return super.disconnect(socket);
+    session.peers.delete(socket.peerId);
+    socket.session = null;
+    for (const other of session.peers.values()) other.deliver({ type: 'peer-left', peerId: socket.peerId });
+    if (!session.peers.size) this.sessions.delete(session.id);
+  }
+}
+
+/** A dynamic fake RTC mesh; SDP identifies the offerer's channel pair. */
+function createFakeRtcMesh() {
+  const offers = new Map();
+  const connections = [];
+  let nextId = 0;
+  class MeshPeerConnection {
+    constructor() {
+      this.sctp = { maxMessageSize: 262144 };
+      this.connectionState = 'new';
+      this.localDescription = null;
+      this.remoteDescription = null;
+      this.onicecandidate = this.ondatachannel = this.onconnectionstatechange = null;
+      this.localChannel = null;
+      this.remoteChannel = null;
+      this.peer = null;
+      this.closed = false;
+      connections.push(this);
+    }
+    createDataChannel(label) {
+      [this.localChannel, this.remoteChannel] = FakeDataChannel.createPair(label);
+      return this.localChannel;
+    }
+    async createOffer() {
+      this.offerId = ++nextId;
+      offers.set(this.offerId, this);
+      return { type: 'offer', sdp: String(this.offerId) };
+    }
+    async createAnswer() { return { type: 'answer', sdp: String(this.offerId) }; }
+    async setLocalDescription(description) {
+      this.localDescription = description;
+      this.maybeEstablish();
+    }
+    async setRemoteDescription(description) {
+      this.remoteDescription = description;
+      if (description.type === 'offer') {
+        this.offerId = Number(description.sdp);
+        this.peer = offers.get(this.offerId);
+        this.peer.peer = this;
+      }
+      this.maybeEstablish();
+    }
+    async addIceCandidate() {}
+    maybeEstablish() {
+      const peer = this.peer;
+      if (!peer || !this.localDescription || !this.remoteDescription ||
+          !peer.localDescription || !peer.remoteDescription || this.connectionState === 'connected') return;
+      const offerer = this.localChannel ? this : peer;
+      const answerer = this.localChannel ? peer : this;
+      answerer.remoteChannel = offerer.remoteChannel;
+      this.connectionState = peer.connectionState = 'connected';
+      queueMicrotask(() => {
+        offerer.localChannel.open();
+        answerer.remoteChannel.open();
+        answerer.ondatachannel?.({ channel: answerer.remoteChannel });
+      });
+    }
+    close() {
+      if (this.closed) return;
+      this.closed = true;
+      this.connectionState = 'closed';
+      this.localChannel?.close();
+      this.remoteChannel?.close();
+      this.onconnectionstatechange?.({});
+    }
+  }
+  return { rtc: () => new MeshPeerConnection(), connections };
+}
+
+module.exports = { FakeDataChannel, FakePeerConnection, createFakeRtcPair, LoopbackSignalingServer,
+  RoomLoopbackSignalingServer, createFakeRtcMesh };

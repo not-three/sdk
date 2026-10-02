@@ -25,5 +25,6 @@ export * from './lib/P2PSignaling';
 export * from './lib/P2PConnection';
 export * from './lib/P2PReceiver';
 export * from './lib/P2PSender';
+export * from './lib/P2PRoom';
 
 export default Not3ClientImport;
