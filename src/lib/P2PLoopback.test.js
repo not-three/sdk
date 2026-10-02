@@ -80,6 +80,33 @@ const senderChannel = (rtc) => rtc.pairs[rtc.pairs.length - 1].hub.sender._local
 const tick = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 describe('P2P loopback', () => {
+  test('sender cancellation flushes abort before channel close during transfer', async () => {
+    const data = randomBytes(CPS * 4);
+    const { rtc, senderP2P, receiverP2P } = setup();
+    const sender = new P2PSender(senderP2P, 'cancel.bin', data.length);
+    const progress = record(sender);
+    const sent = sender.start(readerFor(data));
+    sent.catch(() => {});
+    await progress.waitFor('waiting-peer');
+    const receiver = new P2PReceiver(receiverP2P, sender.getSessionId(), sender.getSeed());
+    let writes = 0;
+    const received = receiver.start(async () => {
+      writes++;
+      if (writes === 1) {
+        const channel = senderChannel(rtc);
+        channel.deliveryDelayMs = 10;
+        channel.autoDrain = false;
+        const cancelling = sender.cancel();
+        setTimeout(() => channel.drain(), 15);
+        await cancelling;
+      }
+    });
+    received.catch(() => {});
+    await expect(received).rejects.toBeInstanceOf(P2PCancelledError);
+    await expect(sent).rejects.toBeInstanceOf(P2PCancelledError);
+    expect(writes).toBeGreaterThan(0);
+  });
+
   test('manual rejection reaches the sender as cancellation without starting a stream', async () => {
     const oldTimeout = P2PProtocol.CONTROL_TIMEOUT_MS;
     P2PProtocol.CONTROL_TIMEOUT_MS = 100;

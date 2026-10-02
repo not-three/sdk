@@ -149,7 +149,18 @@ export class P2PSender {
   async cancel(): Promise<void> {
     if (this.settled) return;
     await this.trySendControl({ t: 'abort', reason: 'cancelled' });
+    await this.flushAbort();
     this.fail(new P2PCancelledError());
+  }
+
+  /** Let the encrypted abort leave the local send buffer before closing. */
+  private async flushAbort(): Promise<void> {
+    const channel = this.conn?.channel;
+    if (!channel) return;
+    const deadline = Date.now() + P2PProtocol.CONTROL_TIMEOUT_MS;
+    while (channel.readyState === 'open' && channel.bufferedAmount > 0 && Date.now() < deadline) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 1));
+    }
   }
 
   private async run(getBytes: GetBytesFn): Promise<void> {
