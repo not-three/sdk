@@ -2,6 +2,7 @@ import { SubClient } from '../lib/SubClient';
 import { SystemAPI } from './System';
 import { RTCFactory } from '../types/sdk/P2P';
 import { InfoResponse } from '../types/api/InfoResponse';
+import { P2PRoom, P2PRoomOptions } from '../lib/P2PRoom';
 
 /**
  * Sub-client for live P2P transfers. Provides the gateway address,
@@ -10,6 +11,16 @@ import { InfoResponse } from '../types/api/InfoResponse';
  * @see {@link Not3Client.p2p}
  */
 export class P2PClient extends SubClient {
+  /** Construct a generic encrypted mesh room. */
+  room(opts: P2PRoomOptions): P2PRoom {
+    return new P2PRoom(this, opts);
+  }
+
+  /** Whether the connected API has room signaling enabled. */
+  async roomsEnabled(): Promise<boolean> {
+    const info = await new SystemAPI(this.api, this.options).info();
+    return (info as InfoResponse & { p2pRooms?: boolean }).p2pRooms === true;
+  }
   /**
    * The WebSocket signaling gateway URL, derived from the API base URL.
    * @returns The `ws://` or `wss://` gateway URL.
