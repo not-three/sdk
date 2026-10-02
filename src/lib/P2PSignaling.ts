@@ -8,6 +8,12 @@ export interface P2PSessionGrant {
   sessionId: string;
   /** The ICE servers to use for the WebRTC handshake. */
   iceServers: RTCIceServer[];
+  /** Session kind, when supplied by a room-capable gateway. */
+  kind?: string;
+  /** This member's id in a room. */
+  peerId?: string;
+  /** Existing members on join. */
+  peers?: string[];
 }
 
 interface Pending {
@@ -22,6 +28,10 @@ interface GatewayMessage {
   iceServers?: RTCIceServer[];
   payload?: unknown;
   code?: string;
+  kind?: string;
+  peerId?: string;
+  peers?: string[];
+  from?: string;
 }
 
 /**
@@ -34,13 +44,13 @@ interface GatewayMessage {
  */
 export class P2PSignaling {
   /** Called for every relayed `signal` payload from the peer. */
-  onSignal: ((payload: unknown) => void) | null = null;
+  onSignal: ((payload: unknown, from?: string) => void) | null = null;
 
   /** Called when a receiver joins the session. */
-  onPeerJoined: (() => void) | null = null;
+  onPeerJoined: ((peerId?: string) => void) | null = null;
 
   /** Called when the peer leaves the session. */
-  onPeerLeft: (() => void) | null = null;
+  onPeerLeft: ((peerId?: string) => void) | null = null;
 
   /** Called when the socket drops or the server reports an unsolicited error. */
   onClose: ((err?: Error) => void) | null = null;
@@ -104,11 +114,16 @@ export class P2PSignaling {
     }
     switch (msg.type) {
       case 'created':
-        this.pending?.resolve({ sessionId: msg.sessionId ?? '', iceServers: msg.iceServers ?? [] });
+        this.pending?.resolve({ sessionId: msg.sessionId ?? '', iceServers: msg.iceServers ?? [],
+          ...(msg.kind !== undefined && { kind: msg.kind }),
+          ...(msg.peerId !== undefined && { peerId: msg.peerId }) });
         break;
       case 'joined': {
         const sessionId = this.pending?.sessionId ?? msg.sessionId ?? '';
-        this.pending?.resolve({ sessionId, iceServers: msg.iceServers ?? [] });
+        this.pending?.resolve({ sessionId, iceServers: msg.iceServers ?? [],
+          ...(msg.kind !== undefined && { kind: msg.kind }),
+          ...(msg.peerId !== undefined && { peerId: msg.peerId }),
+          ...(msg.peers !== undefined && { peers: msg.peers }) });
         break;
       }
       case 'error': {
@@ -118,13 +133,13 @@ export class P2PSignaling {
         break;
       }
       case 'signal':
-        this.onSignal?.(msg.payload);
+        this.onSignal?.(msg.payload, msg.from);
         break;
       case 'peer-joined':
-        this.onPeerJoined?.();
+        this.onPeerJoined?.(msg.peerId);
         break;
       case 'peer-left':
-        this.onPeerLeft?.();
+        this.onPeerLeft?.(msg.peerId);
         break;
     }
   }
@@ -133,8 +148,8 @@ export class P2PSignaling {
    * Create a new session as the sender.
    * @returns The session grant.
    */
-  create(): Promise<P2PSessionGrant> {
-    return this.request({ type: 'create' });
+  create(kind?: 'room'): Promise<P2PSessionGrant> {
+    return this.request(kind ? { type: 'create', kind } : { type: 'create' });
   }
 
   /**
@@ -173,8 +188,8 @@ export class P2PSignaling {
    * @param payload The payload to relay.
    * @throws Error If the socket is not open.
    */
-  sendSignal(payload: unknown): void {
-    this.send({ type: 'signal', payload });
+  sendSignal(payload: unknown, to?: string): void {
+    this.send(to ? { type: 'signal', to, payload } : { type: 'signal', payload });
   }
 
   /**

@@ -115,4 +115,29 @@ describe('P2PSignaling', () => {
     sig.create();
     await expect(sig.create()).rejects.toThrow('Another signaling request is in flight');
   });
+
+  test('room create and join return membership grants without changing transfer grants', async () => {
+    const { sig, ws } = await connected();
+    const created = sig.create('room');
+    expect(ws.sent[0]).toEqual({ type: 'create', kind: 'room' });
+    ws.receive({ type: 'created', sessionId: 'room-1', iceServers: [], kind: 'room', peerId: 'a' });
+    await expect(created).resolves.toEqual({ sessionId: 'room-1', iceServers: [], kind: 'room', peerId: 'a' });
+    const joined = sig.join('room-1');
+    ws.receive({ type: 'joined', sessionId: 'room-1', iceServers: [], kind: 'room', peerId: 'b', peers: ['a'] });
+    await expect(joined).resolves.toEqual({ sessionId: 'room-1', iceServers: [], kind: 'room', peerId: 'b', peers: ['a'] });
+  });
+
+  test('room signals and membership retain peer addresses', async () => {
+    const { sig, ws } = await connected();
+    const got = [];
+    sig.onSignal = (payload, from) => got.push(['signal', from, payload]);
+    sig.onPeerJoined = (peerId) => got.push(['joined', peerId]);
+    sig.onPeerLeft = (peerId) => got.push(['left', peerId]);
+    sig.sendSignal({ sdp: 'offer' }, 'b');
+    expect(ws.sent[0]).toEqual({ type: 'signal', to: 'b', payload: { sdp: 'offer' } });
+    ws.receive({ type: 'signal', from: 'b', payload: { sdp: 'answer' } });
+    ws.receive({ type: 'peer-joined', peerId: 'b' });
+    ws.receive({ type: 'peer-left', peerId: 'b' });
+    expect(got).toEqual([['signal', 'b', { sdp: 'answer' }], ['joined', 'b'], ['left', 'b']]);
+  });
 });
