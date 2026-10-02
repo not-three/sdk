@@ -80,6 +80,36 @@ const senderChannel = (rtc) => rtc.pairs[rtc.pairs.length - 1].hub.sender._local
 const tick = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 describe('P2P loopback', () => {
+  test('manual rejection reaches the sender as cancellation without starting a stream', async () => {
+    const oldTimeout = P2PProtocol.CONTROL_TIMEOUT_MS;
+    P2PProtocol.CONTROL_TIMEOUT_MS = 100;
+    const data = randomBytes(CPS * 2);
+    const { rtc, senderP2P, receiverP2P } = setup();
+    const sender = new P2PSender(senderP2P, 'consent.bin', data.length);
+    const progress = record(sender);
+    const sent = sender.start(readerFor(data));
+    sent.catch(() => {});
+    try {
+      await progress.waitFor('waiting-peer');
+      const receiver = new P2PReceiver(receiverP2P, sender.getSessionId(), sender.getSeed());
+      const received = receiver.start(async () => { throw new Error('streamed before consent'); }, { manualAccept: true });
+      received.catch(() => {});
+      await receiver.getMeta();
+      expect(senderChannel(rtc).sent.filter((frame) => typeof frame !== 'string')).toHaveLength(0);
+      const receiverChannel = senderChannel(rtc).peer;
+      receiverChannel.deliveryDelayMs = 10;
+      receiverChannel.autoDrain = false;
+      const rejection = receiver.reject();
+      setTimeout(() => receiverChannel.drain(), 15);
+      await rejection;
+      await expect(received).rejects.toBeInstanceOf(P2PCancelledError);
+      await expect(sent).rejects.toBeInstanceOf(P2PCancelledError);
+    } finally {
+      await sender.cancel();
+      P2PProtocol.CONTROL_TIMEOUT_MS = oldTimeout;
+    }
+  });
+
   test('receiver completion close cannot leave a fully delivered sender waiting forever', async () => {
     const oldTimeout = P2PProtocol.CONTROL_TIMEOUT_MS;
     P2PProtocol.CONTROL_TIMEOUT_MS = 50;

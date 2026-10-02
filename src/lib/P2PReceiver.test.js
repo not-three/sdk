@@ -128,6 +128,27 @@ describe('P2PReceiver', () => {
     });
   });
 
+  test('manual acceptance exposes metadata without accepting or buffering early chunks', async () => {
+    const { receiver, script } = await harness();
+    const writes = [];
+    const done = receiver.start(async (buf) => writes.push(new Uint8Array(buf)), { manualAccept: true });
+    const s = await script;
+    await s.send({ t: 'meta', name: 'consent.bin', size: 3, chunkPayloadSize: CPS });
+    await expect(receiver.getMeta()).resolves.toEqual({ name: 'consent.bin', size: 3, chunkPayloadSize: CPS });
+    await s.sendChunk(0, new Uint8Array([8, 8, 8]).buffer);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    expect(s.channel.peer.sent).toEqual([]);
+    expect(writes).toEqual([]);
+    await receiver.accept();
+    expect(await s.next()).toEqual({ t: 'accept', offset: 0 });
+    await s.sendChunk(0, new Uint8Array([1, 2, 3]).buffer);
+    await s.send({ t: 'done', chunkCount: 1 });
+    expect(await s.next()).toEqual({ t: 'complete' });
+    s.channel.close();
+    await done;
+    expect(writes).toEqual([new Uint8Array([1, 2, 3])]);
+  });
+
   test('resume rounds the offset down to a chunk boundary', async () => {
     const { receiver, script } = await harness();
     const size = Math.floor(CPS * 2.5);
