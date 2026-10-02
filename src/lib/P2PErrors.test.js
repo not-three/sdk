@@ -1,7 +1,14 @@
 const {
-  P2PError, P2PDisabledError, P2PSessionNotFoundError, P2PSessionFullError,
-  P2PPeerAuthFailedError, P2PPeerDisconnectedError, P2PConnectTimeoutError,
-  P2PTransferCorruptedError, P2PCancelledError, p2pErrorFromGatewayCode,
+  P2PError,
+  P2PDisabledError,
+  P2PSessionNotFoundError,
+  P2PSessionFullError,
+  P2PPeerAuthFailedError,
+  P2PPeerDisconnectedError,
+  P2PConnectTimeoutError,
+  P2PTransferCorruptedError,
+  P2PCancelledError,
+  p2pErrorFromGatewayCode,
 } = require('../../dist/index.cjs');
 
 describe('P2P errors', () => {
@@ -25,9 +32,15 @@ describe('P2P errors', () => {
   });
 
   test('gateway codes map to the right classes', () => {
-    expect(p2pErrorFromGatewayCode('disabled')).toBeInstanceOf(P2PDisabledError);
-    expect(p2pErrorFromGatewayCode('not-found')).toBeInstanceOf(P2PSessionNotFoundError);
-    expect(p2pErrorFromGatewayCode('session-full')).toBeInstanceOf(P2PSessionFullError);
+    expect(p2pErrorFromGatewayCode('disabled')).toBeInstanceOf(
+      P2PDisabledError,
+    );
+    expect(p2pErrorFromGatewayCode('not-found')).toBeInstanceOf(
+      P2PSessionNotFoundError,
+    );
+    expect(p2pErrorFromGatewayCode('session-full')).toBeInstanceOf(
+      P2PSessionFullError,
+    );
     const generic = p2pErrorFromGatewayCode('rate-limited');
     expect(generic).toBeInstanceOf(P2PError);
     expect(generic.code).toBe('rate-limited');

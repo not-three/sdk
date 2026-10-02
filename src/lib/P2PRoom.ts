@@ -8,7 +8,10 @@ import { P2PSignaling } from './P2PSignaling';
 export type P2PRoomState = 'idle' | 'connecting' | 'joined' | 'closed';
 
 /** A known room member; `connected` means its data channel is open. */
-export interface P2PRoomPeer { id: string; connected: boolean }
+export interface P2PRoomPeer {
+  id: string;
+  connected: boolean;
+}
 
 /** Configuration for an encrypted room. */
 export interface P2PRoomOptions {
@@ -36,7 +39,8 @@ interface PeerLink {
  */
 export class P2PRoom {
   /** Called for a decrypted string or binary message. */
-  onMessage: ((peerId: string, data: ArrayBuffer | string) => void) | null = null;
+  onMessage: ((peerId: string, data: ArrayBuffer | string) => void) | null =
+    null;
   /** Called when a peer's data channel opens. */
   onPeerJoined: ((peerId: string) => void) | null = null;
   /** Called when a peer's data channel closes or fails authentication. */
@@ -60,12 +64,19 @@ export class P2PRoom {
   private closeNotified = false;
 
   /** Create a room handle with a configured P2P client and shared seed. */
-  constructor(private readonly client: P2PClient, private readonly opts: P2PRoomOptions) {}
+  constructor(
+    private readonly client: P2PClient,
+    private readonly opts: P2PRoomOptions,
+  ) {}
 
   /** Current room lifecycle state. */
-  get state(): P2PRoomState { return this.currentState; }
+  get state(): P2PRoomState {
+    return this.currentState;
+  }
   /** This member's gateway id after a successful create or join. */
-  get peerId(): string | null { return this.selfId; }
+  get peerId(): string | null {
+    return this.selfId;
+  }
 
   /** Create a new room and resolve on the gateway grant. */
   async create(): Promise<{ roomId: string; peerId: string }> {
@@ -88,7 +99,8 @@ export class P2PRoom {
     const signaling = await this.open();
     try {
       const grant = await signaling.join(roomId);
-      if (!grant.peerId || grant.kind !== 'room') throw new Error('Invalid room grant');
+      if (!grant.peerId || grant.kind !== 'room')
+        throw new Error('Invalid room grant');
       this.selfId = grant.peerId;
       this.iceServers = grant.iceServers;
       const peers = grant.peers ?? [];
@@ -108,48 +120,73 @@ export class P2PRoom {
 
   /** Known other members, including peers whose channel is still opening. */
   peers(): P2PRoomPeer[] {
-    return [...this.links.values()].map(({ id, connection }) => ({ id, connected: connection?.channel.readyState === 'open' }));
+    return [...this.links.values()].map(({ id, connection }) => ({
+      id,
+      connected: connection?.channel.readyState === 'open',
+    }));
   }
 
   /** Send one encrypted message to every currently connected peer. */
   async broadcast(data: ArrayBuffer | Uint8Array | string): Promise<void> {
-    await Promise.all(this.peers().filter((peer) => peer.connected).map((peer) => this.send(peer.id, data)));
+    await Promise.all(
+      this.peers()
+        .filter((peer) => peer.connected)
+        .map((peer) => this.send(peer.id, data)),
+    );
   }
 
   /** Send one encrypted message to a connected peer. */
-  async send(peerId: string, data: ArrayBuffer | Uint8Array | string): Promise<void> {
+  async send(
+    peerId: string,
+    data: ArrayBuffer | Uint8Array | string,
+  ): Promise<void> {
     const channel = this.links.get(peerId)?.connection?.channel;
-    if (!channel || channel.readyState !== 'open' || !this.key) throw new Error('Peer is not connected');
+    if (!channel || channel.readyState !== 'open' || !this.key)
+      throw new Error('Peer is not connected');
     let frame: ArrayBuffer | string;
     if (typeof data === 'string') {
       frame = await Crypto.encrypt(data, this.key, 'gcm');
-      if (frame.length > P2PProtocol.MAX_MESSAGE_SIZE) throw new Error('P2P message exceeds maximum size');
+      if (frame.length > P2PProtocol.MAX_MESSAGE_SIZE)
+        throw new Error('P2P message exceeds maximum size');
     } else {
-      const plain = data instanceof Uint8Array
-        ? data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer
-        : data;
-      if (plain.byteLength + Crypto.AES_GCM_HEADER_BYTES > P2PProtocol.MAX_MESSAGE_SIZE)
+      const plain =
+        data instanceof Uint8Array
+          ? (data.buffer.slice(
+              data.byteOffset,
+              data.byteOffset + data.byteLength,
+            ) as ArrayBuffer)
+          : data;
+      if (
+        plain.byteLength + Crypto.AES_GCM_HEADER_BYTES >
+        P2PProtocol.MAX_MESSAGE_SIZE
+      )
         throw new Error('P2P message exceeds maximum size');
       frame = await Crypto.encrypt(plain, this.key, 'gcm');
     }
     if (channel.readyState !== 'open') throw new Error('Peer is not connected');
-    if (typeof frame === 'string') channel.send(frame);
-    else channel.send(frame);
+    channel.send(frame as string);
   }
 
   /** Leave the room and close all peer channels. Calls `onClose` once. */
-  leave(): void { this.close(); }
+  leave(): void {
+    this.close();
+  }
 
   private async open(): Promise<P2PSignaling> {
     if (this.currentState !== 'idle') throw new Error('Room already started');
     this.setState('connecting');
     try {
       this.key = await Crypto.generateKey(this.opts.seed, 'gcm');
-      const signaling = new P2PSignaling(this.client.gatewayUrl(), this.client.webSocketCtor());
+      const signaling = new P2PSignaling(
+        this.client.gatewayUrl(),
+        this.client.webSocketCtor(),
+      );
       this.signaling = signaling;
       signaling.onClose = (error) => this.onSignalingClosed(error);
       signaling.onSignal = (payload, from) => this.onSignal(from, payload);
-      signaling.onPeerJoined = (id) => { if (id && this.currentState === 'joined') this.ensurePeer(id); };
+      signaling.onPeerJoined = (id) => {
+        if (id && this.currentState === 'joined') this.ensurePeer(id);
+      };
       // A gateway departure can leave an established RTC channel alive.
       signaling.onPeerLeft = (id) => {
         if (id && !this.links.get(id)?.connection) this.dropPeer(id);
@@ -169,7 +206,13 @@ export class P2PRoom {
       onSignal: null as ((payload: unknown) => void) | null,
       sendSignal: (payload: unknown) => this.signaling?.sendSignal(payload, id),
     };
-    link = { id, connection: null, starting: false, signal, queue: Promise.resolve() };
+    link = {
+      id,
+      connection: null,
+      starting: false,
+      signal,
+      queue: Promise.resolve(),
+    };
     this.links.set(id, link);
     return link;
   }
@@ -187,38 +230,61 @@ export class P2PRoom {
     link.starting = true;
     let pending: Promise<P2PConnectResult>;
     try {
-      pending = connectPeer({ role, signaling: link.signal, rtc: this.client.rtcFactory(), iceServers: this.iceServers });
+      pending = connectPeer({
+        role,
+        signaling: link.signal,
+        rtc: this.client.rtcFactory(),
+        iceServers: this.iceServers,
+      });
     } catch {
       this.dropPeer(id);
       return;
     }
-    void pending.then((connection) => {
-      if (this.links.get(id) !== link || this.currentState !== 'joined') {
-        connection.pc.close();
-        return;
-      }
-      link.connection = connection;
-      connection.channel.onmessage = (event: MessageEvent) => {
-        link.queue = link.queue.then(() => this.receive(link, event.data)).catch(() => this.dropPeer(id));
-      };
-      connection.channel.onclose = () => this.dropPeer(id);
-      connection.pc.onconnectionstatechange = () => {
-        if (connection.pc.connectionState === 'failed' || connection.pc.connectionState === 'closed') this.dropPeer(id);
-      };
-      this.onPeerJoined?.(id);
-    }, () => this.dropPeer(id));
+    void pending.then(
+      (connection) => {
+        if (this.links.get(id) !== link || this.currentState !== 'joined') {
+          connection.pc.close();
+          return;
+        }
+        link.connection = connection;
+        connection.channel.onmessage = (event: MessageEvent) => {
+          link.queue = link.queue
+            .then(() => this.receive(link, event.data))
+            .catch(() => this.dropPeer(id));
+        };
+        connection.channel.onclose = () => this.dropPeer(id);
+        connection.pc.onconnectionstatechange = () => {
+          if (
+            connection.pc.connectionState === 'failed' ||
+            connection.pc.connectionState === 'closed'
+          )
+            this.dropPeer(id);
+        };
+        this.onPeerJoined?.(id);
+      },
+      () => this.dropPeer(id),
+    );
   }
 
   private async receive(link: PeerLink, data: unknown): Promise<void> {
     if (this.links.get(link.id) !== link || !this.key) return;
     let plain: ArrayBuffer | string;
     if (typeof data === 'string') {
-      if (data.length > P2PProtocol.MAX_MESSAGE_SIZE) throw new Error('P2P message exceeds maximum size');
+      if (data.length > P2PProtocol.MAX_MESSAGE_SIZE)
+        throw new Error('P2P message exceeds maximum size');
       plain = await Crypto.decrypt(data, this.key, 'gcm');
     } else {
-      const frame = data instanceof ArrayBuffer ? data : ArrayBuffer.isView(data)
-        ? data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer : null;
-      if (!frame || frame.byteLength > P2PProtocol.MAX_MESSAGE_SIZE) throw new Error('Invalid P2P message');
+      const frame =
+        data instanceof ArrayBuffer
+          ? data
+          : ArrayBuffer.isView(data)
+            ? (data.buffer.slice(
+                data.byteOffset,
+                data.byteOffset + data.byteLength,
+              ) as ArrayBuffer)
+            : null;
+      if (!frame || frame.byteLength > P2PProtocol.MAX_MESSAGE_SIZE)
+        throw new Error('Invalid P2P message');
       plain = await Crypto.decrypt(frame, this.key, 'gcm');
     }
     try {
@@ -241,14 +307,18 @@ export class P2PRoom {
       link.connection.pc.close();
     }
     if (wasConnected) this.onPeerLeft?.(id);
-    if (this.signalingLost && this.peers().every((peer) => !peer.connected)) this.close();
+    if (this.signalingLost && this.peers().every((peer) => !peer.connected))
+      this.close();
   }
 
   private onSignalingClosed(error?: Error): void {
     if (this.currentState === 'closed') return;
     this.signaling?.close();
     this.signaling = null;
-    if (this.currentState === 'joined' && this.peers().some((peer) => peer.connected)) {
+    if (
+      this.currentState === 'joined' &&
+      this.peers().some((peer) => peer.connected)
+    ) {
       if (!this.signalingLost) {
         this.signalingLost = true;
         this.opts.onSignalingLost?.();

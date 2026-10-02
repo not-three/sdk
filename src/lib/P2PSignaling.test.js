@@ -10,14 +10,26 @@ class FakeWebSocket {
     this.onopen = this.onmessage = this.onclose = this.onerror = null;
     FakeWebSocket.instances.push(this);
   }
-  send(data) { this.sent.push(JSON.parse(data)); }
-  close() { this.readyState = 3; if (this.onclose) this.onclose({ code: 1000 }); }
+  send(data) {
+    this.sent.push(JSON.parse(data));
+  }
+  close() {
+    this.readyState = 3;
+    if (this.onclose) this.onclose({ code: 1000 });
+  }
   // test drivers:
-  open() { this.readyState = 1; this.onopen && this.onopen({}); }
-  receive(obj) { this.onmessage && this.onmessage({ data: JSON.stringify(obj) }); }
+  open() {
+    this.readyState = 1;
+    this.onopen && this.onopen({});
+  }
+  receive(obj) {
+    this.onmessage && this.onmessage({ data: JSON.stringify(obj) });
+  }
 }
 
-beforeEach(() => { FakeWebSocket.instances = []; });
+beforeEach(() => {
+  FakeWebSocket.instances = [];
+});
 
 async function connected() {
   const sig = new P2PSignaling('wss://api.x/p2p', FakeWebSocket);
@@ -38,8 +50,15 @@ describe('P2PSignaling', () => {
     const { sig, ws } = await connected();
     const p = sig.create();
     expect(ws.sent).toEqual([{ type: 'create' }]);
-    ws.receive({ type: 'created', sessionId: 's1', iceServers: [{ urls: 'stun:s' }] });
-    await expect(p).resolves.toEqual({ sessionId: 's1', iceServers: [{ urls: 'stun:s' }] });
+    ws.receive({
+      type: 'created',
+      sessionId: 's1',
+      iceServers: [{ urls: 'stun:s' }],
+    });
+    await expect(p).resolves.toEqual({
+      sessionId: 's1',
+      iceServers: [{ urls: 'stun:s' }],
+    });
   });
 
   test('join resolves with grant and rejects with typed error', async () => {
@@ -58,7 +77,8 @@ describe('P2PSignaling', () => {
     const { sig, ws } = await connected();
     const got = [];
     sig.onSignal = (payload) => got.push(payload);
-    let joined = 0; let left = 0;
+    let joined = 0;
+    let left = 0;
     sig.onPeerJoined = () => joined++;
     sig.onPeerLeft = () => left++;
     ws.receive({ type: 'peer-joined' });
@@ -123,18 +143,44 @@ describe('P2PSignaling', () => {
   test('two in-flight requests are refused', async () => {
     const { sig } = await connected();
     sig.create();
-    await expect(sig.create()).rejects.toThrow('Another signaling request is in flight');
+    await expect(sig.create()).rejects.toThrow(
+      'Another signaling request is in flight',
+    );
   });
 
   test('room create and join return membership grants without changing transfer grants', async () => {
     const { sig, ws } = await connected();
     const created = sig.create('room');
     expect(ws.sent[0]).toEqual({ type: 'create', kind: 'room' });
-    ws.receive({ type: 'created', sessionId: 'room-1', iceServers: [], kind: 'room', peerId: 'a' });
-    await expect(created).resolves.toEqual({ sessionId: 'room-1', iceServers: [], kind: 'room', peerId: 'a' });
+    ws.receive({
+      type: 'created',
+      sessionId: 'room-1',
+      iceServers: [],
+      kind: 'room',
+      peerId: 'a',
+    });
+    await expect(created).resolves.toEqual({
+      sessionId: 'room-1',
+      iceServers: [],
+      kind: 'room',
+      peerId: 'a',
+    });
     const joined = sig.join('room-1');
-    ws.receive({ type: 'joined', sessionId: 'room-1', iceServers: [], kind: 'room', peerId: 'b', peers: ['a'] });
-    await expect(joined).resolves.toEqual({ sessionId: 'room-1', iceServers: [], kind: 'room', peerId: 'b', peers: ['a'] });
+    ws.receive({
+      type: 'joined',
+      sessionId: 'room-1',
+      iceServers: [],
+      kind: 'room',
+      peerId: 'b',
+      peers: ['a'],
+    });
+    await expect(joined).resolves.toEqual({
+      sessionId: 'room-1',
+      iceServers: [],
+      kind: 'room',
+      peerId: 'b',
+      peers: ['a'],
+    });
   });
 
   test('room signals and membership retain peer addresses', async () => {
@@ -144,10 +190,18 @@ describe('P2PSignaling', () => {
     sig.onPeerJoined = (peerId) => got.push(['joined', peerId]);
     sig.onPeerLeft = (peerId) => got.push(['left', peerId]);
     sig.sendSignal({ sdp: 'offer' }, 'b');
-    expect(ws.sent[0]).toEqual({ type: 'signal', to: 'b', payload: { sdp: 'offer' } });
+    expect(ws.sent[0]).toEqual({
+      type: 'signal',
+      to: 'b',
+      payload: { sdp: 'offer' },
+    });
     ws.receive({ type: 'signal', from: 'b', payload: { sdp: 'answer' } });
     ws.receive({ type: 'peer-joined', peerId: 'b' });
     ws.receive({ type: 'peer-left', peerId: 'b' });
-    expect(got).toEqual([['signal', 'b', { sdp: 'answer' }], ['joined', 'b'], ['left', 'b']]);
+    expect(got).toEqual([
+      ['signal', 'b', { sdp: 'answer' }],
+      ['joined', 'b'],
+      ['left', 'b'],
+    ]);
   });
 });

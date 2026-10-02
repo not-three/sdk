@@ -59,7 +59,10 @@ export class P2PProtocol {
    * @returns The plaintext payload size of a single chunk.
    */
   static chunkPayloadSize(sctpMaxMessageSize?: number | null): number {
-    const cap = Math.min(sctpMaxMessageSize || this.MAX_MESSAGE_SIZE, this.MAX_MESSAGE_SIZE);
+    const cap = Math.min(
+      sctpMaxMessageSize || this.MAX_MESSAGE_SIZE,
+      this.MAX_MESSAGE_SIZE,
+    );
     return cap - Crypto.AES_GCM_HEADER_BYTES - this.CHUNK_INDEX_BYTES;
   }
 
@@ -79,7 +82,10 @@ export class P2PProtocol {
    * @param key The transfer key.
    * @returns The encrypted string frame.
    */
-  static async encryptControl(msg: P2PControlMessage, key: CryptoKey): Promise<string> {
+  static async encryptControl(
+    msg: P2PControlMessage,
+    key: CryptoKey,
+  ): Promise<string> {
     return Crypto.encrypt(JSON.stringify(msg), key, 'gcm');
   }
 
@@ -90,8 +96,13 @@ export class P2PProtocol {
    * @throws Error If the key is wrong or the frame is garbage.
    * @returns The control message.
    */
-  static async decryptControl(data: string, key: CryptoKey): Promise<P2PControlMessage> {
-    return JSON.parse(await Crypto.decrypt(data, key, 'gcm')) as P2PControlMessage;
+  static async decryptControl(
+    data: string,
+    key: CryptoKey,
+  ): Promise<P2PControlMessage> {
+    return JSON.parse(
+      await Crypto.decrypt(data, key, 'gcm'),
+    ) as P2PControlMessage;
   }
 
   /**
@@ -101,7 +112,11 @@ export class P2PProtocol {
    * @param key The transfer key.
    * @returns The encrypted binary frame.
    */
-  static async encryptChunk(index: number, payload: ArrayBuffer, key: CryptoKey): Promise<ArrayBuffer> {
+  static async encryptChunk(
+    index: number,
+    payload: ArrayBuffer,
+    key: CryptoKey,
+  ): Promise<ArrayBuffer> {
     const plain = new Uint8Array(this.CHUNK_INDEX_BYTES + payload.byteLength);
     new DataView(plain.buffer).setUint32(0, index, false);
     plain.set(new Uint8Array(payload), this.CHUNK_INDEX_BYTES);
@@ -121,6 +136,9 @@ export class P2PProtocol {
   ): Promise<{ index: number; payload: ArrayBuffer }> {
     const plain = await Crypto.decrypt(data, key, 'gcm');
     const view = new DataView(plain);
-    return { index: view.getUint32(0, false), payload: plain.slice(this.CHUNK_INDEX_BYTES) };
+    return {
+      index: view.getUint32(0, false),
+      payload: plain.slice(this.CHUNK_INDEX_BYTES),
+    };
   }
 }

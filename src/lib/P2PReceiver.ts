@@ -1,6 +1,12 @@
 import { P2PClient } from '../clients/P2P';
 import { SetBytesFn } from '../types/sdk/SetBytesFn';
-import { P2PControlMessage, P2PMeta, P2PProgress, P2PProgressHook, P2PState } from '../types/sdk/P2P';
+import {
+  P2PControlMessage,
+  P2PMeta,
+  P2PProgress,
+  P2PProgressHook,
+  P2PState,
+} from '../types/sdk/P2P';
 import { Crypto } from './Crypto';
 import { P2PProtocol } from './P2PProtocol';
 import { P2PSignaling } from './P2PSignaling';
@@ -33,7 +39,10 @@ function deferred<T>(): Deferred<T> {
 function toArrayBuffer(data: unknown): ArrayBuffer {
   if (data instanceof ArrayBuffer) return data;
   if (ArrayBuffer.isView(data)) {
-    return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
+    return data.buffer.slice(
+      data.byteOffset,
+      data.byteOffset + data.byteLength,
+    ) as ArrayBuffer;
   }
   throw new Error('Unsupported binary frame type on the data channel');
 }
@@ -55,7 +64,11 @@ function toArrayBuffer(data: unknown): ArrayBuffer {
  */
 export class P2PReceiver {
   private progressHook: P2PProgressHook | null = null;
-  private progress: P2PProgress = { state: 'idle', bytesTransferred: 0, totalBytes: 0 };
+  private progress: P2PProgress = {
+    state: 'idle',
+    bytesTransferred: 0,
+    totalBytes: 0,
+  };
   private readonly metaDeferred = deferred<P2PMeta>();
   private readonly startDeferred = deferred<void>();
 
@@ -133,13 +146,18 @@ export class P2PReceiver {
    */
   async start(
     setBytes: SetBytesFn,
-    resumeOffset: number | { resumeOffset?: number; manualAccept?: boolean } = 0,
+    resumeOffset:
+      number | { resumeOffset?: number; manualAccept?: boolean } = 0,
   ): Promise<void> {
     if (this.started) throw new Error('Transfer already started');
     this.started = true;
     this.setBytes = setBytes;
-    this.resumeOffset = typeof resumeOffset === 'number' ? resumeOffset : (resumeOffset.resumeOffset ?? 0);
-    this.manualAccept = typeof resumeOffset === 'object' && resumeOffset.manualAccept === true;
+    this.resumeOffset =
+      typeof resumeOffset === 'number'
+        ? resumeOffset
+        : (resumeOffset.resumeOffset ?? 0);
+    this.manualAccept =
+      typeof resumeOffset === 'object' && resumeOffset.manualAccept === true;
     try {
       await this.run();
     } catch (e) {
@@ -189,7 +207,11 @@ export class P2PReceiver {
     const channel = this.channel;
     if (!channel) return;
     const deadline = Date.now() + P2PProtocol.CONTROL_TIMEOUT_MS;
-    while (channel.readyState === 'open' && channel.bufferedAmount > 0 && Date.now() < deadline) {
+    while (
+      channel.readyState === 'open' &&
+      channel.bufferedAmount > 0 &&
+      Date.now() < deadline
+    ) {
       await new Promise<void>((resolve) => setTimeout(resolve, 1));
     }
   }
@@ -198,9 +220,13 @@ export class P2PReceiver {
     this.setState('connecting');
     this.key = await Crypto.generateKey(this.seed, 'gcm');
 
-    const signaling = new P2PSignaling(this.p2p.gatewayUrl(), this.p2p.webSocketCtor());
+    const signaling = new P2PSignaling(
+      this.p2p.gatewayUrl(),
+      this.p2p.webSocketCtor(),
+    );
     this.signaling = signaling;
-    signaling.onClose = (error) => this.failLater(error ?? new P2PPeerDisconnectedError());
+    signaling.onClose = (error) =>
+      this.failLater(error ?? new P2PPeerDisconnectedError());
     signaling.onPeerLeft = () => this.failLater(new P2PPeerDisconnectedError());
     await signaling.connect();
     const grant = await signaling.join(this.sessionId);
@@ -231,7 +257,9 @@ export class P2PReceiver {
    * the frame carries the better explanation.
    */
   private failLater(error: Error): void {
-    this.queue = this.queue.then(() => this.fail(this.cancelled ? new P2PCancelledError() : error));
+    this.queue = this.queue.then(() =>
+      this.fail(this.cancelled ? new P2PCancelledError() : error),
+    );
   }
 
   private enqueue(data: unknown): void {
@@ -267,7 +295,9 @@ export class P2PReceiver {
         break;
       case 'abort':
         this.fail(
-          msg.reason === 'cancelled' ? new P2PCancelledError() : new P2PPeerDisconnectedError(),
+          msg.reason === 'cancelled'
+            ? new P2PCancelledError()
+            : new P2PPeerDisconnectedError(),
         );
         break;
     }
@@ -288,7 +318,8 @@ export class P2PReceiver {
     this.metaDeferred.resolve(meta);
 
     const offset = Math.min(Math.max(this.resumeOffset, 0), meta.size);
-    this.startOffset = Math.floor(offset / meta.chunkPayloadSize) * meta.chunkPayloadSize;
+    this.startOffset =
+      Math.floor(offset / meta.chunkPayloadSize) * meta.chunkPayloadSize;
     this.expectedIndex = this.startOffset / meta.chunkPayloadSize;
     this.progress.totalBytes = meta.size;
     this.progress.bytesTransferred = this.startOffset;
@@ -345,8 +376,12 @@ export class P2PReceiver {
     // Install the completion close handlers in the same turn as send(): the
     // sender may receive `complete` and close before another awaited callback.
     const channel = this.channel;
-    if (!channel || channel.readyState !== 'open') throw new P2PPeerDisconnectedError();
-    const complete = await P2PProtocol.encryptControl({ t: 'complete' }, this.key!);
+    if (!channel || channel.readyState !== 'open')
+      throw new P2PPeerDisconnectedError();
+    const complete = await P2PProtocol.encryptControl(
+      { t: 'complete' },
+      this.key!,
+    );
     if (channel.readyState !== 'open') throw new P2PPeerDisconnectedError();
     channel.send(complete);
     // Keep the channel alive until the sender closes it after processing
@@ -354,7 +389,10 @@ export class P2PReceiver {
     // Older senders also close on completion; bound the wait if the peer does not.
     channel.onclose = () => this.finish();
     this.signaling!.onPeerLeft = () => this.finish();
-    this.controlTimer = setTimeout(() => this.finish(), P2PProtocol.CONTROL_TIMEOUT_MS);
+    this.controlTimer = setTimeout(
+      () => this.finish(),
+      P2PProtocol.CONTROL_TIMEOUT_MS,
+    );
     this.setState('done');
     await this.emitProgress();
   }

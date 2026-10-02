@@ -1,6 +1,13 @@
 const {
-  Not3Client, P2PReceiver, P2PProtocol, P2PSignaling, Crypto, connectPeer,
-  P2PPeerAuthFailedError, P2PTransferCorruptedError, P2PPeerDisconnectedError,
+  Not3Client,
+  P2PReceiver,
+  P2PProtocol,
+  P2PSignaling,
+  Crypto,
+  connectPeer,
+  P2PPeerAuthFailedError,
+  P2PTransferCorruptedError,
+  P2PPeerDisconnectedError,
 } = require('../../dist/index.cjs');
 const { LoopbackSignalingServer, createFakeRtcPair } = require('./P2PFakes');
 
@@ -15,7 +22,8 @@ function fixture(size) {
 }
 
 function chunkOf(data, index) {
-  return data.slice(index * CPS, Math.min((index + 1) * CPS, data.length)).buffer;
+  return data.slice(index * CPS, Math.min((index + 1) * CPS, data.length))
+    .buffer;
 }
 
 /** The scripted peer: raw sender-side channel driven by hand. */
@@ -44,7 +52,9 @@ class Script {
   }
 
   async sendChunk(index, payload, { corrupt = false } = {}) {
-    const enc = new Uint8Array(await P2PProtocol.encryptChunk(index, payload, this.key));
+    const enc = new Uint8Array(
+      await P2PProtocol.encryptChunk(index, payload, this.key),
+    );
     if (corrupt) enc[enc.length - 1] ^= 0xff;
     this.channel.send(enc.buffer);
   }
@@ -55,20 +65,31 @@ async function harness(opts = {}) {
   const key = await Crypto.generateKey(seed, 'gcm');
   const server = new LoopbackSignalingServer();
   const WS = server.connectFactory();
-  const { senderFactory, receiverFactory } = createFakeRtcPair({ maxMessageSize: MAX_MESSAGE_SIZE });
+  const { senderFactory, receiverFactory } = createFakeRtcPair({
+    maxMessageSize: MAX_MESSAGE_SIZE,
+  });
 
   const senderSig = new P2PSignaling('ws://fake/p2p', WS);
   await senderSig.connect();
   const { sessionId } = await senderSig.create();
-  const peerJoined = new Promise((r) => { senderSig.onPeerJoined = r; });
+  const peerJoined = new Promise((r) => {
+    senderSig.onPeerJoined = r;
+  });
 
-  const client = new Not3Client({ baseUrl: 'https://api.x/', webSocket: WS, rtc: receiverFactory });
+  const client = new Not3Client({
+    baseUrl: 'https://api.x/',
+    webSocket: WS,
+    rtc: receiverFactory,
+  });
   const receiver = new P2PReceiver(client.p2p(), sessionId, seed);
 
   const script = (async () => {
     await peerJoined;
     const { channel } = await connectPeer({
-      role: 'sender', signaling: senderSig, rtc: senderFactory, iceServers: [],
+      role: 'sender',
+      signaling: senderSig,
+      rtc: senderFactory,
+      iceServers: [],
     });
     return new Script(channel, key);
   })();
@@ -81,7 +102,10 @@ function collect(receiver, resumeOffset) {
   const writes = [];
   const states = [];
   const progress = [];
-  receiver.onProgress((p) => { states.push(p.state); progress.push({ ...p }); });
+  receiver.onProgress((p) => {
+    states.push(p.state);
+    progress.push({ ...p });
+  });
   const done = receiver.start(async (buf, index) => {
     writes.push({ index, bytes: new Uint8Array(buf) });
   }, resumeOffset);
@@ -94,9 +118,12 @@ describe('P2PReceiver', () => {
     const { done } = collect(receiver);
     await script;
 
-    server.sockets.find((socket) => socket.role === 'receiver').deliver({
-      type: 'error', code: 'invalid-message',
-    });
+    server.sockets
+      .find((socket) => socket.role === 'receiver')
+      .deliver({
+        type: 'error',
+        code: 'invalid-message',
+      });
 
     await expect(done).rejects.toMatchObject({ code: 'invalid-message' });
   });
@@ -110,7 +137,11 @@ describe('P2PReceiver', () => {
     const s = await script;
     await s.send({ t: 'meta', name: 'a.bin', size, chunkPayloadSize: CPS });
     expect(await s.next()).toEqual({ t: 'accept', offset: 0 });
-    await expect(receiver.getMeta()).resolves.toEqual({ name: 'a.bin', size, chunkPayloadSize: CPS });
+    await expect(receiver.getMeta()).resolves.toEqual({
+      name: 'a.bin',
+      size,
+      chunkPayloadSize: CPS,
+    });
 
     for (let i = 0; i < 3; i++) await s.sendChunk(i, chunkOf(data, i));
     await s.send({ t: 'done', chunkCount: 3 });
@@ -119,22 +150,41 @@ describe('P2PReceiver', () => {
     await done;
 
     expect(writes.map((w) => w.index)).toEqual([0, 1, 2]);
-    expect(Buffer.concat(writes.map((w) => Buffer.from(w.bytes)))).toEqual(Buffer.from(data));
+    expect(Buffer.concat(writes.map((w) => Buffer.from(w.bytes)))).toEqual(
+      Buffer.from(data),
+    );
     expect(states.filter((v, i, a) => a[i - 1] !== v)).toEqual([
-      'connecting', 'handshake', 'transfer', 'done',
+      'connecting',
+      'handshake',
+      'transfer',
+      'done',
     ]);
     expect(progress[progress.length - 1]).toEqual({
-      state: 'done', bytesTransferred: size, totalBytes: size,
+      state: 'done',
+      bytesTransferred: size,
+      totalBytes: size,
     });
   });
 
   test('manual acceptance exposes metadata without accepting or buffering early chunks', async () => {
     const { receiver, script } = await harness();
     const writes = [];
-    const done = receiver.start(async (buf) => writes.push(new Uint8Array(buf)), { manualAccept: true });
+    const done = receiver.start(
+      async (buf) => writes.push(new Uint8Array(buf)),
+      { manualAccept: true },
+    );
     const s = await script;
-    await s.send({ t: 'meta', name: 'consent.bin', size: 3, chunkPayloadSize: CPS });
-    await expect(receiver.getMeta()).resolves.toEqual({ name: 'consent.bin', size: 3, chunkPayloadSize: CPS });
+    await s.send({
+      t: 'meta',
+      name: 'consent.bin',
+      size: 3,
+      chunkPayloadSize: CPS,
+    });
+    await expect(receiver.getMeta()).resolves.toEqual({
+      name: 'consent.bin',
+      size: 3,
+      chunkPayloadSize: CPS,
+    });
     const queueBefore = receiver.queue;
     await s.sendChunk(0, new Uint8Array([8, 8, 8]).buffer);
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -160,15 +210,24 @@ describe('P2PReceiver', () => {
       const done = receiver.start(async () => {}, { manualAccept: true });
       done.catch(() => {});
       const s = await script;
-      await s.send({ t: 'meta', name: 'a.bin', size: 10, chunkPayloadSize: CPS });
+      await s.send({
+        t: 'meta',
+        name: 'a.bin',
+        size: 10,
+        chunkPayloadSize: CPS,
+      });
       await receiver.getMeta();
       s.channel.peer.autoDrain = false;
       const rejecting = receiver.reject();
       setTimeout(() => s.channel.close(), 5);
-      await expect(Promise.race([
-        rejecting,
-        new Promise((_, reject) => setTimeout(() => reject(new Error('reject hung after close')), 20)),
-      ])).resolves.toBeUndefined();
+      await expect(
+        Promise.race([
+          rejecting,
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('reject hung after close')), 20),
+          ),
+        ]),
+      ).resolves.toBeUndefined();
       await expect(done).rejects.toMatchObject({ code: 'cancelled' });
     } finally {
       P2PProtocol.CONTROL_TIMEOUT_MS = oldTimeout;
@@ -200,7 +259,10 @@ describe('P2PReceiver', () => {
     const { done } = collect(receiver);
     const s = await script;
     const wrongKey = await Crypto.generateKey(Crypto.generateSeed(), 'gcm');
-    await s.send({ t: 'meta', name: 'a.bin', size: 10, chunkPayloadSize: CPS }, wrongKey);
+    await s.send(
+      { t: 'meta', name: 'a.bin', size: 10, chunkPayloadSize: CPS },
+      wrongKey,
+    );
     await expect(done).rejects.toBeInstanceOf(P2PPeerAuthFailedError);
   });
 
@@ -226,7 +288,9 @@ describe('P2PReceiver', () => {
     await done;
 
     expect(writes.map((w) => w.index)).toEqual([0, 1, 2]);
-    expect(Buffer.concat(writes.map((w) => Buffer.from(w.bytes)))).toEqual(Buffer.from(data));
+    expect(Buffer.concat(writes.map((w) => Buffer.from(w.bytes)))).toEqual(
+      Buffer.from(data),
+    );
   });
 
   test('one unresolved gap sends one nack despite later frames and done', async () => {
@@ -249,10 +313,13 @@ describe('P2PReceiver', () => {
     await done;
 
     const controls = await Promise.all(
-      s.channel.peer.sent.filter((frame) => typeof frame === 'string')
-        .map((frame) => P2PProtocol.decryptControl(frame, key))
+      s.channel.peer.sent
+        .filter((frame) => typeof frame === 'string')
+        .map((frame) => P2PProtocol.decryptControl(frame, key)),
     );
-    expect(controls.filter((msg) => msg.t === 'nack')).toEqual([{ t: 'nack', index: 0 }]);
+    expect(controls.filter((msg) => msg.t === 'nack')).toEqual([
+      { t: 'nack', index: 0 },
+    ]);
     expect(writes.map((write) => write.index)).toEqual([0, 1, 2, 3]);
   });
 
@@ -295,7 +362,12 @@ describe('P2PReceiver', () => {
     const { writes, done } = collect(receiver);
 
     const s = await script;
-    await s.send({ t: 'meta', name: 'empty.bin', size: 0, chunkPayloadSize: CPS });
+    await s.send({
+      t: 'meta',
+      name: 'empty.bin',
+      size: 0,
+      chunkPayloadSize: CPS,
+    });
     expect(await s.next()).toEqual({ t: 'accept', offset: 0 });
     await s.send({ t: 'done', chunkCount: 0 });
     expect(await s.next()).toEqual({ t: 'complete' });

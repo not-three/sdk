@@ -1,4 +1,4 @@
-import { CryptoMode } from "../types/sdk/CryptoMode";
+import { CryptoMode } from '../types/sdk/CryptoMode';
 
 /**
  * Mainly used by the @not3/ui.

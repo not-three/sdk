@@ -1,6 +1,11 @@
 const {
-  Not3Client, P2PSender, P2PReceiver, P2PProtocol, Crypto,
-  P2PCancelledError, P2PPeerAuthFailedError,
+  Not3Client,
+  P2PSender,
+  P2PReceiver,
+  P2PProtocol,
+  Crypto,
+  P2PCancelledError,
+  P2PPeerAuthFailedError,
 } = require('../../dist/index.cjs');
 const { LoopbackSignalingServer, createFakeRtcPair } = require('./P2PFakes');
 
@@ -33,7 +38,9 @@ function linkedRtc(maxMessageSize = MAX_MESSAGE_SIZE) {
       pairs.push(pair);
       pending = pair;
     }
-    return role === 'sender' ? pair.senderFactory(config) : pair.receiverFactory(config);
+    return role === 'sender'
+      ? pair.senderFactory(config)
+      : pair.receiverFactory(config);
   };
   return { pairs, senderRtc: half('sender'), receiverRtc: half('receiver') };
 }
@@ -75,7 +82,8 @@ function setup(maxMessageSize = MAX_MESSAGE_SIZE) {
 const readerFor = (data) => async (start, end) => data.slice(start, end).buffer;
 
 /** The sender's end of the most recently created fake link. */
-const senderChannel = (rtc) => rtc.pairs[rtc.pairs.length - 1].hub.sender._localChannel;
+const senderChannel = (rtc) =>
+  rtc.pairs[rtc.pairs.length - 1].hub.sender._localChannel;
 
 const tick = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -88,7 +96,11 @@ describe('P2P loopback', () => {
     const sent = sender.start(readerFor(data));
     sent.catch(() => {});
     await progress.waitFor('waiting-peer');
-    const receiver = new P2PReceiver(receiverP2P, sender.getSessionId(), sender.getSeed());
+    const receiver = new P2PReceiver(
+      receiverP2P,
+      sender.getSessionId(),
+      sender.getSeed(),
+    );
     let writes = 0;
     const received = receiver.start(async () => {
       writes++;
@@ -118,11 +130,22 @@ describe('P2P loopback', () => {
     sent.catch(() => {});
     try {
       await progress.waitFor('waiting-peer');
-      const receiver = new P2PReceiver(receiverP2P, sender.getSessionId(), sender.getSeed());
-      const received = receiver.start(async () => { throw new Error('streamed before consent'); }, { manualAccept: true });
+      const receiver = new P2PReceiver(
+        receiverP2P,
+        sender.getSessionId(),
+        sender.getSeed(),
+      );
+      const received = receiver.start(
+        async () => {
+          throw new Error('streamed before consent');
+        },
+        { manualAccept: true },
+      );
       received.catch(() => {});
       await receiver.getMeta();
-      expect(senderChannel(rtc).sent.filter((frame) => typeof frame !== 'string')).toHaveLength(0);
+      expect(
+        senderChannel(rtc).sent.filter((frame) => typeof frame !== 'string'),
+      ).toHaveLength(0);
       const receiverChannel = senderChannel(rtc).peer;
       receiverChannel.deliveryDelayMs = 10;
       receiverChannel.autoDrain = false;
@@ -150,7 +173,11 @@ describe('P2P loopback', () => {
     let receiverChannel;
     try {
       await progress.waitFor('waiting-peer');
-      const receiver = new P2PReceiver(receiverP2P, sender.getSessionId(), sender.getSeed());
+      const receiver = new P2PReceiver(
+        receiverP2P,
+        sender.getSessionId(),
+        sender.getSeed(),
+      );
       receiver.onProgress((p) => {
         if (p.state === 'transfer' && !receiverChannel) {
           // Browser delivery is asynchronous after send(); the receiver closes
@@ -166,18 +193,30 @@ describe('P2P loopback', () => {
         }
       });
       const received = [];
-      await receiver.start(async (buf) => { received.push(Buffer.from(new Uint8Array(buf))); });
-      expect(Buffer.compare(Buffer.concat(received), Buffer.from(data))).toBe(0);
+      await receiver.start(async (buf) => {
+        received.push(Buffer.from(new Uint8Array(buf)));
+      });
+      expect(Buffer.compare(Buffer.concat(received), Buffer.from(data))).toBe(
+        0,
+      );
       await Promise.race([
         sendDone,
-        tick(200).then(() => { throw new Error('sender remained pending after receiver closed'); }),
+        tick(200).then(() => {
+          throw new Error('sender remained pending after receiver closed');
+        }),
       ]);
       expect(sender.getProgress().state).toBe('done');
       const key = await Crypto.generateKey(sender.getSeed(), 'gcm');
-      const sent = await Promise.all(receiverChannel.sent.filter((frame) => typeof frame === 'string')
-        .map((frame) => P2PProtocol.decryptControl(frame, key)));
-      const delivered = await Promise.all(deliveredControls
-        .map((frame) => P2PProtocol.decryptControl(frame, key)));
+      const sent = await Promise.all(
+        receiverChannel.sent
+          .filter((frame) => typeof frame === 'string')
+          .map((frame) => P2PProtocol.decryptControl(frame, key)),
+      );
+      const delivered = await Promise.all(
+        deliveredControls.map((frame) =>
+          P2PProtocol.decryptControl(frame, key),
+        ),
+      );
       expect(sent).toContainEqual({ t: 'complete' });
       expect(delivered).toContainEqual({ t: 'complete' });
     } finally {
@@ -196,20 +235,32 @@ describe('P2P loopback', () => {
     const sendDone = sender.start(readerFor(data));
     await senderProgress.waitFor('waiting-peer');
 
-    const receiver = new P2PReceiver(receiverP2P, sender.getSessionId(), sender.getSeed());
+    const receiver = new P2PReceiver(
+      receiverP2P,
+      sender.getSessionId(),
+      sender.getSeed(),
+    );
     const receiverProgress = record(receiver);
     const out = [];
-    const recvDone = receiver.start(async (buf) => { out.push(Buffer.from(new Uint8Array(buf))); });
+    const recvDone = receiver.start(async (buf) => {
+      out.push(Buffer.from(new Uint8Array(buf)));
+    });
 
     await Promise.all([sendDone, recvDone]);
 
     expect(Buffer.compare(Buffer.concat(out), Buffer.from(data))).toBe(0);
-    expect(await receiver.getMeta()).toEqual({ name: 'big.bin', size, chunkPayloadSize: CPS });
+    expect(await receiver.getMeta()).toEqual({
+      name: 'big.bin',
+      size,
+      chunkPayloadSize: CPS,
+    });
     expect(sender.getProgress().state).toBe('done');
     expect(receiver.getProgress().state).toBe('done');
     for (const p of [senderProgress, receiverProgress]) {
       expect(p.states[p.states.length - 1]).toBe('done');
-      expect(p.bytes.every((v, i) => i === 0 || v >= p.bytes[i - 1])).toBe(true);
+      expect(p.bytes.every((v, i) => i === 0 || v >= p.bytes[i - 1])).toBe(
+        true,
+      );
     }
     expect(rtc.pairs).toHaveLength(1);
   });
@@ -223,10 +274,21 @@ describe('P2P loopback', () => {
     const senderProgress = record(sender);
     const sendDone = sender.start(readerFor(data));
     let sendSettled = false;
-    sendDone.then(() => { sendSettled = true; }, () => { sendSettled = true; });
+    sendDone.then(
+      () => {
+        sendSettled = true;
+      },
+      () => {
+        sendSettled = true;
+      },
+    );
     await senderProgress.waitFor('waiting-peer');
 
-    const first = new P2PReceiver(receiverP2P, sender.getSessionId(), sender.getSeed());
+    const first = new P2PReceiver(
+      receiverP2P,
+      sender.getSessionId(),
+      sender.getSeed(),
+    );
     const out1 = [];
     let written = 0;
     const firstDone = first.start(async (buf) => {
@@ -239,7 +301,11 @@ describe('P2P loopback', () => {
     expect(sendSettled).toBe(false);
 
     const offset = Math.floor(written / CPS) * CPS;
-    const second = new P2PReceiver(receiverP2P, sender.getSessionId(), sender.getSeed());
+    const second = new P2PReceiver(
+      receiverP2P,
+      sender.getSessionId(),
+      sender.getSeed(),
+    );
     const out2 = [];
     const indexes = [];
     await second.start(async (buf, index) => {
@@ -268,7 +334,11 @@ describe('P2P loopback', () => {
     firstSend.catch(() => {});
     await firstProgress.waitFor('waiting-peer');
 
-    const firstReceiver = new P2PReceiver(receiverP2P, first.getSessionId(), first.getSeed());
+    const firstReceiver = new P2PReceiver(
+      receiverP2P,
+      first.getSessionId(),
+      first.getSeed(),
+    );
     const out1 = [];
     let written = 0;
     const firstRecv = firstReceiver.start(async (buf) => {
@@ -280,7 +350,9 @@ describe('P2P loopback', () => {
     await expect(firstSend).rejects.toBeInstanceOf(P2PCancelledError);
 
     // Fresh session, same seed: the receiver can continue where it stopped.
-    const second = new P2PSender(senderP2P, 'restart.bin', size, { seed: first.getSeed() });
+    const second = new P2PSender(senderP2P, 'restart.bin', size, {
+      seed: first.getSeed(),
+    });
     expect(second.getSeed()).toBe(first.getSeed());
     const secondProgress = record(second);
     const secondSend = second.start(readerFor(data));
@@ -288,9 +360,15 @@ describe('P2P loopback', () => {
     expect(second.getSessionId()).not.toBe(first.getSessionId());
 
     const offset = Math.floor(written / CPS) * CPS;
-    const secondReceiver = new P2PReceiver(receiverP2P, second.getSessionId(), second.getSeed());
+    const secondReceiver = new P2PReceiver(
+      receiverP2P,
+      second.getSessionId(),
+      second.getSeed(),
+    );
     const out2 = [];
-    await secondReceiver.start(async (buf) => { out2.push(Buffer.from(new Uint8Array(buf))); }, written);
+    await secondReceiver.start(async (buf) => {
+      out2.push(Buffer.from(new Uint8Array(buf)));
+    }, written);
     await secondSend;
 
     const combined = Buffer.concat([
@@ -314,7 +392,9 @@ describe('P2P loopback', () => {
       const create = pc.createDataChannel.bind(pc);
       pc.createDataChannel = (...args) => {
         const channel = create(...args);
-        channel.corruptNext((bytes) => { bytes[bytes.length - 1] ^= 0xff; });
+        channel.corruptNext((bytes) => {
+          bytes[bytes.length - 1] ^= 0xff;
+        });
         return channel;
       };
       return pc;
@@ -325,7 +405,11 @@ describe('P2P loopback', () => {
     const sendDone = sender.start(readerFor(data));
     await progress.waitFor('waiting-peer');
 
-    const receiver = new P2PReceiver(receiverP2P, sender.getSessionId(), sender.getSeed());
+    const receiver = new P2PReceiver(
+      receiverP2P,
+      sender.getSessionId(),
+      sender.getSeed(),
+    );
     const out = [];
     const indexes = [];
     const recvDone = receiver.start(async (buf, index) => {
@@ -339,7 +423,9 @@ describe('P2P loopback', () => {
     expect(Buffer.compare(Buffer.concat(out), Buffer.from(data))).toBe(0);
     // Go-back-N: the rewind re-sends from the nacked index, so the chunks that
     // were already in flight are sent twice — but never more than one rewind.
-    const binaryFrames = senderChannel(rtc).sent.filter((d) => typeof d !== 'string');
+    const binaryFrames = senderChannel(rtc).sent.filter(
+      (d) => typeof d !== 'string',
+    );
     expect(binaryFrames.length).toBeGreaterThan(4);
     expect(binaryFrames.length).toBeLessThanOrEqual(8);
   });
@@ -354,14 +440,26 @@ describe('P2P loopback', () => {
     const sendDone = sender.start(readerFor(data));
     await progress.waitFor('waiting-peer');
 
-    const impostor = new P2PReceiver(receiverP2P, sender.getSessionId(), Crypto.generateSeed());
-    await expect(impostor.start(async () => {})).rejects.toBeInstanceOf(P2PPeerAuthFailedError);
+    const impostor = new P2PReceiver(
+      receiverP2P,
+      sender.getSessionId(),
+      Crypto.generateSeed(),
+    );
+    await expect(impostor.start(async () => {})).rejects.toBeInstanceOf(
+      P2PPeerAuthFailedError,
+    );
 
-    const receiver = new P2PReceiver(receiverP2P, sender.getSessionId(), sender.getSeed());
+    const receiver = new P2PReceiver(
+      receiverP2P,
+      sender.getSessionId(),
+      sender.getSeed(),
+    );
     const out = [];
     await Promise.all([
       sendDone,
-      receiver.start(async (buf) => { out.push(Buffer.from(new Uint8Array(buf))); }),
+      receiver.start(async (buf) => {
+        out.push(Buffer.from(new Uint8Array(buf)));
+      }),
     ]);
     expect(Buffer.compare(Buffer.concat(out), Buffer.from(data))).toBe(0);
   });
@@ -377,7 +475,11 @@ describe('P2P loopback', () => {
     sendDone.catch(() => {});
     await progress.waitFor('waiting-peer');
 
-    const receiver = new P2PReceiver(receiverP2P, sender.getSessionId(), sender.getSeed());
+    const receiver = new P2PReceiver(
+      receiverP2P,
+      sender.getSessionId(),
+      sender.getSeed(),
+    );
     const recvDone = receiver.start(async (buf, index) => {
       if (index === 0) await sender.cancel();
     });
@@ -397,7 +499,11 @@ describe('P2P loopback', () => {
     sendDone.catch(() => {});
     await progress.waitFor('waiting-peer');
 
-    const receiver = new P2PReceiver(receiverP2P, sender.getSessionId(), sender.getSeed());
+    const receiver = new P2PReceiver(
+      receiverP2P,
+      sender.getSessionId(),
+      sender.getSeed(),
+    );
     const recvDone = receiver.start(async (buf, index) => {
       if (index === 0) await receiver.cancel();
     });

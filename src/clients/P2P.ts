@@ -11,16 +11,6 @@ import { P2PRoom, P2PRoomOptions } from '../lib/P2PRoom';
  * @see {@link Not3Client.p2p}
  */
 export class P2PClient extends SubClient {
-  /** Construct a generic encrypted mesh room. */
-  room(opts: P2PRoomOptions): P2PRoom {
-    return new P2PRoom(this, opts);
-  }
-
-  /** Whether the connected API has room signaling enabled. */
-  async roomsEnabled(): Promise<boolean> {
-    const info = await new SystemAPI(this.api, this.options).info();
-    return (info as InfoResponse & { p2pRooms?: boolean }).p2pRooms === true;
-  }
   /**
    * The WebSocket signaling gateway URL, derived from the API base URL.
    * @returns The `ws://` or `wss://` gateway URL.
@@ -40,7 +30,32 @@ export class P2PClient extends SubClient {
     const info = await new SystemAPI(this.api, this.options).info();
     // p2pEnabled lands in the generated InfoResponse once the API ships it;
     // read tolerantly so this SDK works against both old and new servers.
-    return (info as InfoResponse & { p2pEnabled?: boolean }).p2pEnabled === true;
+    return (
+      (info as InfoResponse & { p2pEnabled?: boolean }).p2pEnabled === true
+    );
+  }
+
+  /**
+   * Whether the connected API has P2P room signaling enabled.
+   * @throws AxiosError If the request fails.
+   * @returns True if rooms can be created and joined.
+   */
+  async roomsEnabled(): Promise<boolean> {
+    const info = await new SystemAPI(this.api, this.options).info();
+    // p2pRooms lands in the generated InfoResponse once the API ships it;
+    // read tolerantly so this SDK works against both old and new servers.
+    return (info as InfoResponse & { p2pRooms?: boolean }).p2pRooms === true;
+  }
+
+  /**
+   * Create a handle for an encrypted P2P room.
+   * @param opts The room options, including the shared seed.
+   * @returns The room, not yet created or joined.
+   * @see {@link P2PRoom.create}
+   * @see {@link P2PRoom.join}
+   */
+  room(opts: P2PRoomOptions): P2PRoom {
+    return new P2PRoom(this, opts);
   }
 
   /**
@@ -50,7 +65,10 @@ export class P2PClient extends SubClient {
    */
   webSocketCtor(): typeof WebSocket {
     const ctor = this.options.webSocket ?? globalThis.WebSocket;
-    if (!ctor) throw new Error('No WebSocket implementation available: pass ClientOptions.webSocket');
+    if (!ctor)
+      throw new Error(
+        'No WebSocket implementation available: pass ClientOptions.webSocket',
+      );
     return ctor;
   }
 
@@ -62,7 +80,9 @@ export class P2PClient extends SubClient {
   rtcFactory(): RTCFactory {
     if (this.options.rtc) return this.options.rtc;
     if (!globalThis.RTCPeerConnection)
-      throw new Error('No RTCPeerConnection implementation available: pass ClientOptions.rtc');
+      throw new Error(
+        'No RTCPeerConnection implementation available: pass ClientOptions.rtc',
+      );
     return (config) => new globalThis.RTCPeerConnection(config);
   }
 }
