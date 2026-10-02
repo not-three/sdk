@@ -62,6 +62,16 @@ test('gateway errors reject join with the mapped error and close room once', asy
   expect(closed).toHaveLength(1);
 });
 
+test.each(['disabled', 'not-found', 'session-full', 'rate-limited', 'invalid-message'])(
+  'room join preserves gateway error code %s', async (code) => {
+    const room = new P2PRoom(client, { seed: Crypto.generateSeed() });
+    const grant = room.join('r1');
+    await tick();
+    Socket.instances[0].receive({ type: 'error', code });
+    await expect(grant).rejects.toMatchObject({ code });
+  }
+);
+
 test('signaling loss without a live channel calls onClose only', async () => {
   const lost = jest.fn();
   const room = new P2PRoom(client, { seed: Crypto.generateSeed(), onSignalingLost: lost });

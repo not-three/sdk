@@ -84,7 +84,7 @@ test('wrong seed closes only that peer and leaves good peers connected', async (
   } finally { a.leave(); b.leave(); bad.leave(); }
 });
 
-test('signaling loss with a live channel notifies once and leaves messages flowing', async () => {
+test.each(['close', 'error'])('signaling %s with a live channel notifies once and leaves messages flowing', async (failure) => {
   const h = setup();
   const lost = jest.fn();
   const a = h.client.room({ seed: h.seed, onSignalingLost: lost });
@@ -97,7 +97,9 @@ test('signaling loss with a live channel notifies once and leaves messages flowi
   const got = [];
   b.onMessage = (id, data) => got.push(data);
   try {
-    h.server.sockets.find((socket) => socket.peerId === a.peerId).close();
+    const socket = h.server.sockets.find((member) => member.peerId === a.peerId);
+    if (failure === 'close') socket.close();
+    else socket.onerror?.({});
     await until(() => lost.mock.calls.length === 1);
     expect(a.state).toBe('joined');
     expect(closed).not.toHaveBeenCalled();

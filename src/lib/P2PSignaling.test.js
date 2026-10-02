@@ -86,6 +86,16 @@ describe('P2PSignaling', () => {
     expect(closed).toBe(1);
   });
 
+  test('socket error after setup closes and reports signaling loss', async () => {
+    const { sig, ws } = await connected();
+    const seen = [];
+    sig.onClose = (error) => seen.push(error);
+    ws.onerror({});
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toBeInstanceOf(Error);
+    expect(ws.readyState).toBe(3);
+  });
+
   test('a server error frame without a pending request reports via onClose', async () => {
     const { sig, ws } = await connected();
     const seen = [];

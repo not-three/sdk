@@ -189,7 +189,10 @@ export class P2PReceiver {
     const channel = this.channel;
     if (!channel || channel.readyState !== 'open' || channel.bufferedAmount === 0) return;
     await new Promise<void>((resolve) => {
-      const timer = setTimeout(resolve, P2PProtocol.CONTROL_TIMEOUT_MS);
+      const timer = setTimeout(() => {
+        channel.onbufferedamountlow = null;
+        resolve();
+      }, P2PProtocol.CONTROL_TIMEOUT_MS);
       channel.bufferedAmountLowThreshold = 0;
       channel.onbufferedamountlow = () => {
         clearTimeout(timer);

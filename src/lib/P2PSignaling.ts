@@ -85,6 +85,11 @@ export class P2PSignaling {
         if (!settled) {
           settled = true;
           reject(new Error('Signaling connection failed'));
+        } else {
+          const error = new Error('Signaling connection failed');
+          this.pending?.reject(error);
+          this.close();
+          this.onClose?.(error);
         }
       };
       ws.onclose = () => {

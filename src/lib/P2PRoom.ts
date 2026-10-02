@@ -18,8 +18,6 @@ export interface P2PRoomOptions {
   onSignalingLost?: () => void;
 }
 
-type RoomData = ArrayBuffer | Uint8Array | string;
-
 interface PeerLink {
   id: string;
   connection: P2PConnectResult | null;
@@ -114,12 +112,12 @@ export class P2PRoom {
   }
 
   /** Send one encrypted message to every currently connected peer. */
-  async broadcast(data: RoomData): Promise<void> {
+  async broadcast(data: ArrayBuffer | Uint8Array | string): Promise<void> {
     await Promise.all(this.peers().filter((peer) => peer.connected).map((peer) => this.send(peer.id, data)));
   }
 
   /** Send one encrypted message to a connected peer. */
-  async send(peerId: string, data: RoomData): Promise<void> {
+  async send(peerId: string, data: ArrayBuffer | Uint8Array | string): Promise<void> {
     const channel = this.links.get(peerId)?.connection?.channel;
     if (!channel || channel.readyState !== 'open' || !this.key) throw new Error('Peer is not connected');
     let frame: ArrayBuffer | string;
@@ -244,6 +242,7 @@ export class P2PRoom {
 
   private onSignalingClosed(error?: Error): void {
     if (this.currentState === 'closed') return;
+    this.signaling?.close();
     this.signaling = null;
     if (this.currentState === 'joined' && this.peers().some((peer) => peer.connected)) {
       if (!this.signalingLost) {

@@ -35,6 +35,25 @@ sender.onProgress(({ state }) => {
 await sender.start((start, end) => file.slice(start, end).arrayBuffer());
 ```
 
+Receivers normally accept after decrypting the file metadata. To ask for
+consent first, pass `manualAccept: true`: `getMeta()` resolves before any accept
+frame or file chunk is processed. Call `accept()` to start streaming, or
+`reject()` to tell the sender the transfer was cancelled.
+
+```ts
+import { P2PReceiver } from '@not3/sdk';
+
+const receiver = new P2PReceiver(client.p2p(), sessionId, seed);
+const receiving = receiver.start(writeChunk, { manualAccept: true });
+const meta = await receiver.getMeta();
+if (await confirmReceive(meta)) await receiver.accept();
+else await receiver.reject();
+await receiving;
+```
+
+Calling `P2PSender.cancel()` during a transfer flushes its encrypted abort
+before closing the channel, so the receiver can report cancellation.
+
 The SDK uses the standard `WebSocket` and `RTCPeerConnection` APIs without
 adding runtime dependencies. In Node, inject implementations of both APIs
 from your chosen libraries:
@@ -48,3 +67,44 @@ const client = new Not3Client({
   webSocket: NodeWebSocket,
 });
 ```
+
+## P2P rooms
+
+`P2PRoom` is a generic encrypted WebRTC mesh for small live messages. The
+gateway handles room membership and directed signaling; it cannot read data
+channel messages. Your application chooses the message format and shares the
+room ID and seed with invitees. Check `client.p2p().roomsEnabled()` before
+offering room creation.
+
+```ts
+import { Crypto, Not3Client } from '@not3/sdk';
+
+const client = new Not3Client({ baseUrl: 'https://api.example.com/' });
+const seed = Crypto.generateSeed();
+const room = client.p2p().room({
+  seed,
+  onSignalingLost: () => showConnectionWarning(),
+});
+room.onMessage = (peerId, data) => handleMessage(peerId, data);
+room.onPeerJoined = (peerId) => console.log('Connected:', peerId);
+room.onPeerLeft = (peerId) => console.log('Disconnected:', peerId);
+room.onClose = (error) => console.log('Room closed:', error);
+const { roomId } = await room.create();
+await room.broadcast(new Uint8Array([1, 2, 3]));
+// An invitee uses client.p2p().room({ seed }).join(roomId).
+```
+
+`join()` resolves on the gateway acknowledgment; `onPeerJoined` fires when a
+data channel opens. `send(peerId, data)` addresses one connected member and
+`broadcast(data)` sends to all connected members. Both accept strings,
+`Uint8Array`, and `ArrayBuffer`; the receiver gets the decrypted string or
+`ArrayBuffer`. Call `leave()` to close the room.
+
+If signaling closes while peer channels remain open, `onSignalingLost` fires
+once and those channels keep carrying messages. New peers cannot join that
+mesh. `onClose` does not fire at that point; it fires once after `leave()` or
+when the last live channel closes. If signaling closes with no live channels,
+only `onClose` fires.
+
+In Node, use the same injected `rtc` and `webSocket` implementations shown in
+the transfer example above, then call `client.p2p().room({ seed })`.
