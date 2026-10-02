@@ -243,6 +243,9 @@ export class P2PReceiver {
   }
 
   private enqueue(data: unknown): void {
+    // Never retain file frames that arrived before the user consented. A
+    // queued frame could otherwise be handled only after accept() flips state.
+    if (this.manualAccept && !this.accepted && typeof data !== 'string') return;
     this.queue = this.queue
       .then(() => this.handleFrame(data))
       .catch((e) => this.fail(e as Error));

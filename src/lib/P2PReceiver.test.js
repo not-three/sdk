@@ -135,12 +135,15 @@ describe('P2PReceiver', () => {
     const s = await script;
     await s.send({ t: 'meta', name: 'consent.bin', size: 3, chunkPayloadSize: CPS });
     await expect(receiver.getMeta()).resolves.toEqual({ name: 'consent.bin', size: 3, chunkPayloadSize: CPS });
+    const queueBefore = receiver.queue;
     await s.sendChunk(0, new Uint8Array([8, 8, 8]).buffer);
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(receiver.queue).toBe(queueBefore); // pre-consent binary frames never enter the work queue
     expect(s.channel.peer.sent).toEqual([]);
     expect(writes).toEqual([]);
     await receiver.accept();
     expect(await s.next()).toEqual({ t: 'accept', offset: 0 });
+    expect(writes).toEqual([]);
     await s.sendChunk(0, new Uint8Array([1, 2, 3]).buffer);
     await s.send({ t: 'done', chunkCount: 1 });
     expect(await s.next()).toEqual({ t: 'complete' });
