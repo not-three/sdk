@@ -1,4 +1,3 @@
-import { P2PSignaling } from './P2PSignaling';
 import { P2PProtocol } from './P2PProtocol';
 import { P2PConnectTimeoutError } from './P2PErrors';
 import { RTCFactory } from '../types/sdk/P2P';
@@ -20,7 +19,10 @@ export interface P2PConnectOptions {
   /** Which side of the handshake to perform. */
   role: 'sender' | 'receiver';
   /** An already connected and paired signaling client. */
-  signaling: P2PSignaling;
+  signaling: {
+    onSignal: ((payload: unknown) => void) | null;
+    sendSignal(payload: unknown): void;
+  };
   /** The factory creating the peer connection. */
   rtc: RTCFactory;
   /** The ICE servers handed out by the gateway. */

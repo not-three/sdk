@@ -78,6 +78,8 @@ export class P2PReceiver {
   private started = false;
   private settled = false;
   private cancelled = false;
+  private manualAccept = false;
+  private accepted = false;
 
   /**
    * Create a receiver for a shared P2P session.
@@ -124,21 +126,51 @@ export class P2PReceiver {
    * Join the session and receive the file.
    * @param setBytes The sink for validated, decrypted chunks. Called strictly
    * in order; the returned promise is awaited before the next chunk is read.
-   * @param resumeOffset How many bytes the sink already holds. Rounded down to
+   * @param resumeOffset How many bytes the sink already holds, or options with
+   * `manualAccept: true` to inspect metadata before accepting. Rounded down to
    * the previous chunk boundary.
    * @returns A promise resolving once the sender confirmed the transfer.
    */
-  async start(setBytes: SetBytesFn, resumeOffset = 0): Promise<void> {
+  async start(
+    setBytes: SetBytesFn,
+    resumeOffset: number | { resumeOffset?: number; manualAccept?: boolean } = 0,
+  ): Promise<void> {
     if (this.started) throw new Error('Transfer already started');
     this.started = true;
     this.setBytes = setBytes;
-    this.resumeOffset = resumeOffset;
+    this.resumeOffset = typeof resumeOffset === 'number' ? resumeOffset : (resumeOffset.resumeOffset ?? 0);
+    this.manualAccept = typeof resumeOffset === 'object' && resumeOffset.manualAccept === true;
     try {
       await this.run();
     } catch (e) {
       this.fail(e as Error);
     }
     return this.startDeferred.promise;
+  }
+
+  /** Accept a transfer after inspecting `getMeta()` in manual mode. */
+  async accept(): Promise<void> {
+    if (!this.started) throw new Error('Transfer not started');
+    await this.getMeta();
+    if (this.settled) throw new P2PCancelledError();
+    if (this.accepted) return;
+    this.accepted = true;
+    try {
+      await this.sendControl({ t: 'accept', offset: this.startOffset });
+      this.setState('transfer');
+    } catch (e) {
+      this.fail(e as Error);
+      throw e;
+    }
+  }
+
+  /** Reject a transfer in manual mode and notify the sender. */
+  async reject(): Promise<void> {
+    if (this.settled) return;
+    this.cancelled = true;
+    await this.trySendControl({ t: 'abort', reason: 'cancelled' });
+    await this.flushControl();
+    this.fail(new P2PCancelledError());
   }
 
   /**
@@ -149,7 +181,17 @@ export class P2PReceiver {
     if (this.settled) return;
     this.cancelled = true;
     await this.trySendControl({ t: 'abort', reason: 'cancelled' });
+    await this.flushControl();
     this.fail(new P2PCancelledError());
+  }
+
+  private async flushControl(): Promise<void> {
+    const channel = this.channel;
+    if (!channel) return;
+    const deadline = Date.now() + P2PProtocol.CONTROL_TIMEOUT_MS;
+    while (channel.readyState === 'open' && channel.bufferedAmount > 0 && Date.now() < deadline) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 1));
+    }
   }
 
   private async run(): Promise<void> {
@@ -189,10 +231,13 @@ export class P2PReceiver {
    * the frame carries the better explanation.
    */
   private failLater(error: Error): void {
-    this.queue = this.queue.then(() => this.fail(error));
+    this.queue = this.queue.then(() => this.fail(this.cancelled ? new P2PCancelledError() : error));
   }
 
   private enqueue(data: unknown): void {
+    // Never retain file frames that arrived before the user consented. A
+    // queued frame could otherwise be handled only after accept() flips state.
+    if (this.manualAccept && !this.accepted && typeof data !== 'string') return;
     this.queue = this.queue
       .then(() => this.handleFrame(data))
       .catch((e) => this.fail(e as Error));
@@ -248,12 +293,11 @@ export class P2PReceiver {
     this.progress.totalBytes = meta.size;
     this.progress.bytesTransferred = this.startOffset;
 
-    await this.sendControl({ t: 'accept', offset: this.startOffset });
-    this.setState('transfer');
+    if (!this.manualAccept) await this.accept();
   }
 
   private async handleChunk(data: ArrayBuffer): Promise<void> {
-    if (!this.meta) return;
+    if (!this.meta || !this.accepted) return;
     let chunk: { index: number; payload: ArrayBuffer };
     try {
       chunk = await P2PProtocol.decryptChunk(data, this.key!);
@@ -288,7 +332,7 @@ export class P2PReceiver {
   }
 
   private async onDone(chunkCount: number): Promise<void> {
-    if (!this.meta) return;
+    if (!this.meta || !this.accepted) return;
     if (this.expectedIndex < chunkCount) {
       // Chunks are missing: ask for the rewind, the sender will re-announce.
       await this.nack(this.expectedIndex);
