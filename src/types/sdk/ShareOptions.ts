@@ -19,4 +19,16 @@ export interface ShareOptions {
    * @default false
    */
   storeServer?: boolean;
+
+  /**
+   * Docker image used for Docker share commands.
+   * @default 'ghcr.io/not-three/cli'
+   */
+  cliImage?: string;
+
+  /**
+   * Base URL of the share helper scripts, with trailing slash.
+   * @default 'https://raw.githubusercontent.com/not-three/main/refs/heads/main/scripts/'
+   */
+  scriptBaseUrl?: string;
 }
