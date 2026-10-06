@@ -33,19 +33,19 @@
     "@eslint/js": "^10.0.1",
     "@parcel/packager-ts": "2.16.4",
     "@parcel/transformer-typescript-types": "2.16.4",
-    "@types/semver": "^7.5.8",
-    "eslint": "^10.6.0",
+    "@types/semver": "^7.8.0",
+    "eslint": "^10.12.0",
     "eslint-config-prettier": "^10.0.1",
-    "globals": "^17.7.0",
-    "jest": "^30.0.2",
+    "globals": "^17.13.0",
+    "jest": "^30.5.2",
     "parcel": "^2.13.3",
-    "prettier": "^3.4.2",
-    "typedoc": "^0.28.0",
+    "prettier": "^3.9.9",
+    "typedoc": "^0.28.20",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.26.1"
+    "typescript-eslint": "^8.71.0"
   },
   "dependencies": {
-    "axios": "^1.8.4",
+    "axios": "^1.20.0",
     "semver": "^7.7.1"
   },
   "packageManager": "pnpm@11.9.0+sha512.bd682d5d03fe525ef7c9fd6780c6884d1e756ac4c9c9fe00c538782824310dcf90e3ddc4f53835f06dfaebd5085e41855e0bcbb3b60de2ac5bbab89e5036f03b"
