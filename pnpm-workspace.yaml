@@ -27,5 +27,6 @@ onlyBuiltDependencies:
 overrides:
   ajv@<6.12.3: ^6.12.3
   ajv@<6.14.0: ^6.14.0
+  argparse@<2: ^2.0.1
   jsonpath-plus@<10.2.0: ^10.2.0
   jsonpath-plus@<10.3.0: ^10.3.0
