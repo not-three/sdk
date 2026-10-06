@@ -15,7 +15,7 @@
 </div></section>
 <div class="tsd-signature"><span class="tsd-signature-keyword">interface</span> <span class="tsd-kind-interface">P2PConnectOptions</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-property" href="#iceservers">iceServers</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">RTCIceServer</span><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#role">role</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">&quot;receiver&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;sender&quot;</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#rtc">rtc</a><span class="tsd-signature-symbol">:</span> <a href="../types/RTCFactory.html" class="tsd-signature-type tsd-kind-type-alias">RTCFactory</a><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#signaling">signaling</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">{</span><br/>        <span class="tsd-kind-property">onSignal</span><span class="tsd-signature-symbol">:</span> (<span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">payload</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span>) <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span><span class="tsd-signature-symbol">;</span><br/>        <span class="tsd-kind-call-signature">sendSignal</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">payload</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">;</span><br/>    <span class="tsd-signature-symbol">}</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#timeoutms">timeoutMs</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/not-three/sdk/blob/9625e9b7491e1aa34bf7a8dee6059418f6e3590c/src/lib/P2PConnection.ts#L18">src/lib/P2PConnection.ts:18</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/not-three/sdk/blob/e318fcf981ced9bb97b9ecb4cdfa8bbe5e036145/src/lib/P2PConnection.ts#L18">src/lib/P2PConnection.ts:18</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -38,28 +38,28 @@
 <div class="tsd-comment tsd-typography"><p>The ICE servers handed out by the gateway.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/not-three/sdk/blob/9625e9b7491e1aa34bf7a8dee6059418f6e3590c/src/lib/P2PConnection.ts#L29">src/lib/P2PConnection.ts:29</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/not-three/sdk/blob/e318fcf981ced9bb97b9ecb4cdfa8bbe5e036145/src/lib/P2PConnection.ts#L29">src/lib/P2PConnection.ts:29</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="role"><span>role</span><a href="#role" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">role</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">&quot;receiver&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;sender&quot;</span></div>
 <div class="tsd-comment tsd-typography"><p>Which side of the handshake to perform.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/not-three/sdk/blob/9625e9b7491e1aa34bf7a8dee6059418f6e3590c/src/lib/P2PConnection.ts#L20">src/lib/P2PConnection.ts:20</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/not-three/sdk/blob/e318fcf981ced9bb97b9ecb4cdfa8bbe5e036145/src/lib/P2PConnection.ts#L20">src/lib/P2PConnection.ts:20</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="rtc"><span>rtc</span><a href="#rtc" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">rtc</span><span class="tsd-signature-symbol">:</span> <a href="../types/RTCFactory.html" class="tsd-signature-type tsd-kind-type-alias">RTCFactory</a></div>
 <div class="tsd-comment tsd-typography"><p>The factory creating the peer connection.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/not-three/sdk/blob/9625e9b7491e1aa34bf7a8dee6059418f6e3590c/src/lib/P2PConnection.ts#L27">src/lib/P2PConnection.ts:27</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/not-three/sdk/blob/e318fcf981ced9bb97b9ecb4cdfa8bbe5e036145/src/lib/P2PConnection.ts#L27">src/lib/P2PConnection.ts:27</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="signaling"><span>signaling</span><a href="#signaling" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">signaling</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">{</span><br/>    <span class="tsd-kind-property">onSignal</span><span class="tsd-signature-symbol">:</span> (<span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">payload</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span>) <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span><span class="tsd-signature-symbol">;</span><br/>    <span class="tsd-kind-call-signature">sendSignal</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">payload</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div>
 <div class="tsd-comment tsd-typography"><p>An already connected and paired signaling client.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/not-three/sdk/blob/9625e9b7491e1aa34bf7a8dee6059418f6e3590c/src/lib/P2PConnection.ts#L22">src/lib/P2PConnection.ts:22</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/not-three/sdk/blob/e318fcf981ced9bb97b9ecb4cdfa8bbe5e036145/src/lib/P2PConnection.ts#L22">src/lib/P2PConnection.ts:22</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="timeoutms"><code class="tsd-tag">Optional</code><span>timeout<wbr/>Ms</span><a href="#timeoutms" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">timeoutMs</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span></div>
@@ -72,7 +72,7 @@
 
 </div></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/not-three/sdk/blob/9625e9b7491e1aa34bf7a8dee6059418f6e3590c/src/lib/P2PConnection.ts#L34">src/lib/P2PConnection.ts:34</a></li></ul></aside></section></section></details></div>
+<li>Defined in <a href="https://github.com/not-three/sdk/blob/e318fcf981ced9bb97b9ecb4cdfa8bbe5e036145/src/lib/P2PConnection.ts#L34">src/lib/P2PConnection.ts:34</a></li></ul></aside></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
