@@ -7,6 +7,7 @@ export * from './types/sdk/GetBytesFn';
 export * from './types/sdk/SetBytesFn';
 export * from './types/sdk/CryptoMode';
 export * from './types/sdk/ShareOptions';
+export * from './types/sdk/ShareAlternative';
 export * from './types/sdk/P2P';
 export * from './clients/Client';
 export * from './clients/Files';
